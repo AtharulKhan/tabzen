@@ -12,6 +12,7 @@ export class WebViewerWidget {
     this.isEditing = false;
     this.openInNewTab = true;
     this.iconSize = 'medium'; // small, medium, large
+    this.autoCloseOnBlur = true; // Auto-close popup when clicking outside
   }
   
   async init() {
@@ -25,13 +26,15 @@ export class WebViewerWidget {
     this.links = this.savedData.links || [];
     this.openInNewTab = this.savedData.openInNewTab !== false;
     this.iconSize = this.savedData.iconSize || 'medium';
+    this.autoCloseOnBlur = this.savedData.autoCloseOnBlur !== false; // Default to true
   }
   
   async saveState() {
     await this.storage.saveWidget(this.id, {
       links: this.links,
       openInNewTab: this.openInNewTab,
-      iconSize: this.iconSize
+      iconSize: this.iconSize,
+      autoCloseOnBlur: this.autoCloseOnBlur
     });
   }
   
@@ -575,18 +578,50 @@ export class WebViewerWidget {
       chrome.windows.create({
         url: link.url,
         type: 'popup',  // This removes the address bar and most UI
-        state: 'normal',  // Ensures it's a normal window that doesn't auto-close
         width: width,
         height: height,
         left: left,
         top: top,
         focused: true
-      }, (window) => {
-        // Store window ID if needed for future reference
+      }, (createdWindow) => {
         if (chrome.runtime.lastError) {
           console.error('Error creating popup:', chrome.runtime.lastError);
           // Fallback to regular tab if popup fails
           chrome.tabs.create({ url: link.url });
+          return;
+        }
+        
+        // Monitor window focus to close when clicking outside (if enabled)
+        if (this.autoCloseOnBlur) {
+          const windowId = createdWindow.id;
+          
+          // Function to check if window should be closed
+          const checkAndCloseWindow = (focusedWindowId) => {
+            // If focus changed to a different window (not -1 which means no Chrome window has focus)
+            if (focusedWindowId !== windowId && focusedWindowId !== chrome.windows.WINDOW_ID_NONE) {
+              // Remove the listener first to avoid multiple calls
+              chrome.windows.onFocusChanged.removeListener(checkAndCloseWindow);
+              
+              // Close the popup window
+              chrome.windows.remove(windowId, () => {
+                if (chrome.runtime.lastError) {
+                  // Window might already be closed
+                  console.log('Window already closed');
+                }
+              });
+            }
+          };
+          
+          // Add focus change listener
+          chrome.windows.onFocusChanged.addListener(checkAndCloseWindow);
+          
+          // Also monitor if the window is closed manually
+          chrome.windows.onRemoved.addListener(function onWindowRemoved(removedWindowId) {
+            if (removedWindowId === windowId) {
+              chrome.windows.onFocusChanged.removeListener(checkAndCloseWindow);
+              chrome.windows.onRemoved.removeListener(onWindowRemoved);
+            }
+          });
         }
       });
     } else {
