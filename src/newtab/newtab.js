@@ -34,6 +34,7 @@ class TabZenApp {
     this.commandRegistry = null;
     this.dragAndDrop = null;
     this.widgetResize = null;
+    this.scratchpad = null;
     
     // Search state
     this.searchTimeout = null;
@@ -74,7 +75,8 @@ class TabZenApp {
       spaceNameInput: document.getElementById('spaceNameInput'),
       iconPicker: document.getElementById('iconPicker'),
       saveSpaceBtn: document.getElementById('saveSpaceBtn'),
-      cancelSpaceBtn: document.getElementById('cancelSpaceBtn')
+      cancelSpaceBtn: document.getElementById('cancelSpaceBtn'),
+      scratchpadBtn: document.getElementById('scratchpadBtn')
     };
     
     this.init();
@@ -106,6 +108,9 @@ class TabZenApp {
       
       // Initialize command palette
       this.initCommandPalette();
+      
+      // Initialize scratchpad
+      this.initScratchpad();
       
       // Load widgets for current space
       await this.widgetManager.loadWidgets(this.elements.widgetGrid);
@@ -284,6 +289,13 @@ class TabZenApp {
     this.elements.themeToggle.addEventListener('click', () => {
       const newTheme = this.themeManager.toggleTheme();
       this.storage.updateSettings({ theme: newTheme });
+    });
+    
+    // Scratchpad
+    this.elements.scratchpadBtn.addEventListener('click', () => {
+      if (this.scratchpad) {
+        this.scratchpad.open();
+      }
     });
     
     // Settings modal
@@ -1283,6 +1295,13 @@ class TabZenApp {
   }
 
   // Initialize command palette
+  initScratchpad() {
+    // Create scratchpad instance
+    if (window.Scratchpad) {
+      this.scratchpad = new window.Scratchpad();
+    }
+  }
+  
   initCommandPalette() {
     // Create command palette instance
     this.commandPalette = new CommandPalette();

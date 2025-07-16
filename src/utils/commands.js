@@ -140,6 +140,22 @@ export class CommandRegistry {
         });
 
         this.commandPalette.registerCommand({
+            id: 'system:open-scratchpad',
+            name: 'Open Scratchpad',
+            description: 'Open the quick notes scratchpad',
+            icon: '📝',
+            category: 'System',
+            aliases: ['notes', 'scratch', 'notepad', 'quick notes'],
+            shortcut: 'Cmd+Shift+S',
+            action: () => {
+                const scratchpadBtn = document.getElementById('scratchpadBtn');
+                if (scratchpadBtn) {
+                    scratchpadBtn.click();
+                }
+            }
+        });
+
+        this.commandPalette.registerCommand({
             id: 'system:export-data',
             name: 'Export Data',
             description: 'Export all TabZen data as JSON',
