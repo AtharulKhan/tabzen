@@ -39,10 +39,41 @@ export class TodoWidget {
           height: 100%;
         }
         
+        .todo-controls {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          margin-bottom: 12px;
+        }
+        
         .todo-input-wrapper {
           display: flex;
           gap: 8px;
-          margin-bottom: 12px;
+          flex: 1;
+        }
+        
+        .todo-copy-btn {
+          width: 32px;
+          height: 32px;
+          border: none;
+          background: var(--surface-hover);
+          color: var(--muted);
+          border-radius: 6px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+        }
+        
+        .todo-copy-btn:hover {
+          background: var(--primary);
+          color: white;
+        }
+        
+        .todo-copy-btn.copied {
+          background: var(--success);
+          color: white;
         }
         
         .todo-input {
@@ -183,16 +214,39 @@ export class TodoWidget {
           padding: 40px 20px;
           font-size: 14px;
         }
+        
+        /* Link styles */
+        .todo-text a {
+          pointer-events: auto;
+          color: var(--primary);
+          text-decoration: underline;
+        }
+        
+        .todo-text a:hover {
+          opacity: 0.8;
+        }
+        
+        .todo-text[contenteditable="true"] a {
+          pointer-events: none;
+        }
       </style>
       
-      <div class="todo-input-wrapper">
-        <input 
-          type="text" 
-          class="todo-input" 
-          placeholder="Add a new task..."
-          id="todoInput"
-        >
-        <button class="todo-add-btn" id="todoAddBtn">Add</button>
+      <div class="todo-controls">
+        <div class="todo-input-wrapper">
+          <input 
+            type="text" 
+            class="todo-input" 
+            placeholder="Add a new task..."
+            id="todoInput"
+          >
+          <button class="todo-add-btn" id="todoAddBtn">Add</button>
+        </div>
+        <button class="todo-copy-btn" id="todoCopyBtn" title="Copy all tasks">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </button>
       </div>
       
       <ul class="todo-list" id="todoList"></ul>
@@ -216,6 +270,7 @@ export class TodoWidget {
     this.todoList = todoContainer.querySelector('#todoList');
     this.todoCount = todoContainer.querySelector('#todoCount');
     this.filterButtons = todoContainer.querySelectorAll('.todo-filter button');
+    this.todoCopyBtn = todoContainer.querySelector('#todoCopyBtn');
     
     // Initial render
     this.renderTodos();
@@ -254,7 +309,7 @@ export class TodoWidget {
         <span 
           class="todo-text" 
           contenteditable="true"
-        >${this.escapeHtml(todo.text)}</span>
+        >${this.linkifyText(todo.text)}</span>
         <button class="todo-remove">×</button>
       `;
       
@@ -293,6 +348,11 @@ export class TodoWidget {
       }
     });
     
+    // Copy button
+    this.todoCopyBtn.addEventListener('click', () => {
+      this.copyAllTasks();
+    });
+    
     // Todo interactions
     this.todoList.addEventListener('click', (e) => {
       const todoItem = e.target.closest('.todo-item');
@@ -325,12 +385,15 @@ export class TodoWidget {
         const todo = this.todos.find(t => t.id === todoId);
         
         if (todo) {
-          const newText = e.target.textContent.trim();
+          // Use innerText to get text without HTML tags
+          const newText = e.target.innerText.trim();
           if (newText && newText !== todo.text) {
             todo.text = newText;
             this.saveState();
+            // Re-render to apply linkification
+            setTimeout(() => this.renderTodos(), 100);
           } else if (!newText) {
-            e.target.textContent = todo.text;
+            e.target.innerHTML = this.linkifyText(todo.text);
           }
         }
       }
@@ -358,6 +421,49 @@ export class TodoWidget {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  linkifyText(text) {
+    // Escape HTML first
+    const escaped = this.escapeHtml(text);
+    
+    // Regular expression to match URLs
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    
+    // Replace URLs with clickable links
+    return escaped.replace(urlRegex, (url) => {
+      return `<a href="${url}" target="_blank" rel="noopener noreferrer" contenteditable="false" style="color: var(--primary); text-decoration: underline;">${url}</a>`;
+    });
+  }
+
+  copyAllTasks() {
+    const todoTexts = this.todos.map((todo, index) => {
+      // Format as simple bullet points without status circles
+      return `* ${todo.text}`;
+    });
+    
+    const allTasks = todoTexts.join('\n');
+    
+    navigator.clipboard.writeText(allTasks).then(() => {
+      // Show success feedback
+      const copyBtn = this.container.querySelector('#todoCopyBtn');
+      copyBtn.classList.add('copied');
+      
+      // Change icon temporarily to checkmark
+      const originalSvg = copyBtn.innerHTML;
+      copyBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      `;
+      
+      setTimeout(() => {
+        copyBtn.classList.remove('copied');
+        copyBtn.innerHTML = originalSvg;
+      }, 2000);
+    }).catch(err => {
+      console.error('Failed to copy tasks:', err);
+    });
   }
   
   openSettings() {
