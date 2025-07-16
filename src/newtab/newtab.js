@@ -15,6 +15,7 @@ import { WeatherWidget } from '../widgets/weather.js';
 import { QuotesWidget } from '../widgets/quotes.js';
 import { CalendarWidget } from '../widgets/calendar.js';
 import { RecentTabsWidget } from '../widgets/recentTabs.js';
+import { WebViewerWidget } from '../widgets/webViewer.js';
 
 class TabZenApp {
   constructor() {
@@ -153,6 +154,18 @@ class TabZenApp {
         <path d="M2 17l10 5 10-5M2 12l10 5 10-5"></path>
       </svg>`,
       defaultSize: '1x2'
+    });
+    
+    this.widgetManager.registerWidget('webViewer', WebViewerWidget, {
+      name: 'Web Launcher',
+      description: 'Quick access to your favorite sites',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+        <path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"></path>
+        <circle cx="12" cy="14" r="3"></circle>
+        <path d="M12 14v3"></path>
+      </svg>`,
+      defaultSize: '2x2'
     });
   }
   

@@ -10,7 +10,8 @@
     "geolocation",
     "bookmarks",
     "tabs",
-    "sessions"
+    "sessions",
+    "webNavigation"
   ],
   
   "chrome_url_overrides": {
@@ -43,6 +44,7 @@
   },
   
   "host_permissions": [
-    "https://*/*"
+    "https://*/*",
+    "http://*/*"
   ]
 }
