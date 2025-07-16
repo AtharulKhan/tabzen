@@ -17,6 +17,7 @@ import { QuotesWidget } from '../widgets/quotes.js';
 import { CalendarWidget } from '../widgets/calendar.js';
 import { RecentTabsWidget } from '../widgets/recentTabs.js';
 import { WebViewerWidget } from '../widgets/webViewer.js';
+import { TabSaverWidget } from '../widgets/tabSaver.js';
 
 class TabZenApp {
   constructor() {
@@ -169,6 +170,16 @@ class TabZenApp {
         <path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"></path>
         <circle cx="12" cy="14" r="3"></circle>
         <path d="M12 14v3"></path>
+      </svg>`,
+      defaultSize: '2x2'
+    });
+    
+    this.widgetManager.registerWidget('tabSaver', TabSaverWidget, {
+      name: 'Tab Groups',
+      description: 'Save and restore groups of tabs',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
       </svg>`,
       defaultSize: '2x2'
     });
