@@ -250,6 +250,7 @@ body {
   cursor: pointer;
   transition: all var(--transition-base);
   border-bottom: 1px solid var(--border);
+  position: relative;
 }
 
 .search-result-item:last-child {
@@ -276,6 +277,7 @@ body {
 .search-result-content {
   flex: 1;
   min-width: 0;
+  padding-right: 40px;
 }
 
 .search-result-title {
@@ -361,6 +363,23 @@ body {
   font-size: 16px;
   font-weight: 600;
   color: var(--foreground);
+  cursor: text;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  user-select: none;
+}
+
+.widget-title:hover {
+  background-color: var(--surface-hover);
+}
+
+.widget-title[contenteditable="true"] {
+  background-color: var(--surface-hover);
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  cursor: text;
+  user-select: text;
 }
 
 .widget-actions {
@@ -861,6 +880,36 @@ body {
     box-shadow: 0 0 0 0 var(--primary-color);
     transform: scale(1);
   }
+}
+
+/* Search Result Popup Button */
+.search-result-popup-btn {
+  position: absolute;
+  right: var(--space-md);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-base);
+  opacity: 0;
+}
+
+.search-result-item:hover .search-result-popup-btn {
+  opacity: 0.6;
+}
+
+.search-result-popup-btn:hover {
+  opacity: 1 !important;
+  background: var(--surface-hover);
+  color: var(--primary);
 }
 
 /* Search Help Button */

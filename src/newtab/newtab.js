@@ -743,6 +743,13 @@ class TabZenApp {
                   <div class="search-result-url">${this.escapeHtml(item.url)}</div>
                   <div class="search-result-meta">${this.formatDate(item.lastVisitTime)}</div>
                 </div>
+                <button class="search-result-popup-btn" data-url="${item.url}" title="Open in mini window">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                  </svg>
+                </button>
               </div>
             `;
           } else if (type === 'widgets') {
@@ -765,6 +772,13 @@ class TabZenApp {
                   <div class="search-result-title">${this.escapeHtml(item.title)}</div>
                   <div class="search-result-url">${this.escapeHtml(item.url)}</div>
                 </div>
+                <button class="search-result-popup-btn" data-url="${item.url}" title="Open in mini window">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                  </svg>
+                </button>
               </div>
             `;
           }
@@ -773,7 +787,15 @@ class TabZenApp {
       
       // Add click handlers
       this.elements.searchResults.querySelectorAll('.search-result-item').forEach(item => {
-        item.addEventListener('click', () => {
+        item.addEventListener('click', (e) => {
+          // Check if popup button was clicked
+          if (e.target.closest('.search-result-popup-btn')) {
+            e.stopPropagation();
+            const url = e.target.closest('.search-result-popup-btn').dataset.url;
+            this.openInMiniWindow(url);
+            return;
+          }
+          
           if (type === 'tabs') {
             // Switch to tab
             const tabId = parseInt(item.dataset.tabId);
@@ -1187,6 +1209,77 @@ class TabZenApp {
     if (diffDays < 7) return `${diffDays} days ago`;
     
     return date.toLocaleDateString();
+  }
+
+  // Open URL in a mini window (popup)
+  openInMiniWindow(url) {
+    const width = 1000;
+    const height = 700;
+    const left = Math.round((window.screen.width - width) / 2);
+    const top = Math.round((window.screen.height - height) / 2);
+    
+    // Use Chrome Windows API for better control
+    chrome.windows.create({
+      url: url,
+      type: 'popup',  // This removes the address bar and most UI
+      width: width,
+      height: height,
+      left: left,
+      top: top,
+      focused: true
+    }, (createdWindow) => {
+      if (chrome.runtime.lastError) {
+        console.error('Error creating popup:', chrome.runtime.lastError);
+        // Fallback to regular window.open
+        const features = [
+          `width=${width}`,
+          `height=${height}`,
+          `left=${left}`,
+          `top=${top}`,
+          'toolbar=no',
+          'location=no',
+          'directories=no',
+          'status=no',
+          'menubar=no',
+          'scrollbars=yes',
+          'resizable=yes'
+        ].join(',');
+        window.open(url, '_blank', features);
+        return;
+      }
+      
+      // Auto-close when clicking outside
+      const windowId = createdWindow.id;
+      
+      const checkAndCloseWindow = (focusedWindowId) => {
+        // If focus changed to a different window
+        if (focusedWindowId !== windowId && focusedWindowId !== chrome.windows.WINDOW_ID_NONE) {
+          // Remove the listener first
+          chrome.windows.onFocusChanged.removeListener(checkAndCloseWindow);
+          
+          // Close the popup window
+          chrome.windows.remove(windowId, () => {
+            if (chrome.runtime.lastError) {
+              console.log('Window already closed');
+            }
+          });
+        }
+      };
+      
+      // Add focus change listener
+      chrome.windows.onFocusChanged.addListener(checkAndCloseWindow);
+      
+      // Clean up listener if window is closed manually
+      chrome.windows.onRemoved.addListener(function onWindowRemoved(removedWindowId) {
+        if (removedWindowId === windowId) {
+          chrome.windows.onFocusChanged.removeListener(checkAndCloseWindow);
+          chrome.windows.onRemoved.removeListener(onWindowRemoved);
+        }
+      });
+    });
+    
+    // Close search results after opening
+    this.hideSearchResults();
   }
 
   // Initialize command palette

@@ -81,8 +81,11 @@ export class WidgetManager {
       // Create widget header
       const header = document.createElement('div');
       header.className = 'widget-header';
+      // Use custom name if available, otherwise use default
+      const displayName = savedData.customName || config.name;
+      
       header.innerHTML = `
-        <h3 class="widget-title">${config.name}</h3>
+        <h3 class="widget-title" contenteditable="false" title="Double-click to rename">${displayName}</h3>
         <div class="widget-actions">
           <button class="icon-button widget-settings-btn" aria-label="Widget settings">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -144,6 +147,53 @@ export class WidgetManager {
       header.querySelector('.widget-settings-btn').addEventListener('click', () => {
         if (widget.openSettings) {
           widget.openSettings();
+        }
+      });
+      
+      // Set up title editing
+      const titleElement = header.querySelector('.widget-title');
+      
+      // Double-click to edit
+      titleElement.addEventListener('dblclick', () => {
+        titleElement.contentEditable = 'true';
+        titleElement.focus();
+        
+        // Select all text
+        const range = document.createRange();
+        range.selectNodeContents(titleElement);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+      });
+      
+      // Save on blur or Enter
+      const saveTitle = async () => {
+        titleElement.contentEditable = 'false';
+        const newName = titleElement.textContent.trim();
+        
+        if (newName && newName !== displayName) {
+          // Update the saved data
+          const widgetData = await this.spaceManager.getWidgetsForSpace();
+          if (widgetData[widgetId]) {
+            widgetData[widgetId].customName = newName;
+            await this.spaceManager.saveWidgetForSpace(widgetId, widgetData[widgetId]);
+          }
+        } else if (!newName) {
+          // Restore original name if empty
+          titleElement.textContent = displayName;
+        }
+      };
+      
+      titleElement.addEventListener('blur', saveTitle);
+      
+      titleElement.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          titleElement.blur();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          titleElement.textContent = displayName;
+          titleElement.blur();
         }
       });
       
