@@ -67,9 +67,11 @@ export class WidgetManager {
       
       // Create widget container
       const widgetElement = document.createElement('div');
-      widgetElement.className = `widget widget-${config.defaultSize || '1x1'}`;
+      const savedSize = savedData.size || config.defaultSize || '1x1';
+      widgetElement.className = `widget widget-${savedSize}`;
       widgetElement.dataset.widgetId = widgetId;
       widgetElement.dataset.widgetType = type;
+      widgetElement.dataset.widgetSize = savedSize;
       widgetElement.draggable = true;
       
       // Create widget header
@@ -97,8 +99,13 @@ export class WidgetManager {
       const content = document.createElement('div');
       content.className = 'widget-content';
       
+      // Create resize handle
+      const resizeHandle = document.createElement('div');
+      resizeHandle.className = 'widget-resize-handle';
+      
       widgetElement.appendChild(header);
       widgetElement.appendChild(content);
+      widgetElement.appendChild(resizeHandle);
       container.appendChild(widgetElement);
       
       // Initialize widget

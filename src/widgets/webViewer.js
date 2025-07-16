@@ -11,6 +11,7 @@ export class WebViewerWidget {
     this.links = [];
     this.isEditing = false;
     this.openInNewTab = true;
+    this.iconSize = 'medium'; // small, medium, large
   }
   
   async init() {
@@ -23,12 +24,14 @@ export class WebViewerWidget {
   async loadState() {
     this.links = this.savedData.links || [];
     this.openInNewTab = this.savedData.openInNewTab !== false;
+    this.iconSize = this.savedData.iconSize || 'medium';
   }
   
   async saveState() {
     await this.storage.saveWidget(this.id, {
       links: this.links,
-      openInNewTab: this.openInNewTab
+      openInNewTab: this.openInNewTab,
+      iconSize: this.iconSize
     });
   }
   
@@ -41,6 +44,14 @@ export class WebViewerWidget {
     header.className = 'web-viewer-header';
     header.innerHTML = `
       <div class="web-viewer-controls">
+        <button class="size-toggle-btn" title="Toggle icon size">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+          </svg>
+        </button>
         <button class="tab-mode-btn ${this.openInNewTab ? 'active' : ''}" title="Toggle window mode">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="5" y="7" width="14" height="10" rx="2" ry="2"></rect>
@@ -59,7 +70,7 @@ export class WebViewerWidget {
     
     // Create links grid
     const grid = document.createElement('div');
-    grid.className = 'web-viewer-grid';
+    grid.className = `web-viewer-grid size-${this.iconSize}`;
     
     // Render links
     this.links.forEach((link, index) => {
@@ -102,6 +113,7 @@ export class WebViewerWidget {
         margin-left: auto;
       }
       
+      .size-toggle-btn,
       .tab-mode-btn,
       .edit-links-btn {
         display: flex;
@@ -121,6 +133,7 @@ export class WebViewerWidget {
         font-weight: 500;
       }
       
+      .size-toggle-btn:hover,
       .tab-mode-btn:hover,
       .edit-links-btn:hover {
         background: var(--surface-hover);
@@ -146,6 +159,16 @@ export class WebViewerWidget {
         padding: 4px;
       }
       
+      .web-viewer-grid.size-small {
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        gap: 12px;
+      }
+      
+      .web-viewer-grid.size-large {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 20px;
+      }
+      
       .web-viewer-card {
         aspect-ratio: 1;
         background: var(--surface);
@@ -161,6 +184,16 @@ export class WebViewerWidget {
         justify-content: center;
         padding: 12px;
         text-align: center;
+      }
+      
+      .size-small .web-viewer-card {
+        padding: 8px;
+        border-radius: 10px;
+      }
+      
+      .size-large .web-viewer-card {
+        padding: 16px;
+        border-radius: 14px;
       }
       
       .web-viewer-card:hover {
@@ -185,6 +218,18 @@ export class WebViewerWidget {
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       }
       
+      .size-small .web-viewer-card-icon {
+        width: 32px;
+        height: 32px;
+        margin-bottom: 4px;
+      }
+      
+      .size-large .web-viewer-card-icon {
+        width: 56px;
+        height: 56px;
+        margin-bottom: 8px;
+      }
+      
       [data-theme="dark"] .web-viewer-card-icon {
         background: var(--background);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -196,10 +241,30 @@ export class WebViewerWidget {
         object-fit: contain;
       }
       
+      .size-small .web-viewer-card-icon img {
+        width: 20px;
+        height: 20px;
+      }
+      
+      .size-large .web-viewer-card-icon img {
+        width: 36px;
+        height: 36px;
+      }
+      
       .web-viewer-card-icon svg {
         width: 20px;
         height: 20px;
         color: var(--primary);
+      }
+      
+      .size-small .web-viewer-card-icon svg {
+        width: 16px;
+        height: 16px;
+      }
+      
+      .size-large .web-viewer-card-icon svg {
+        width: 28px;
+        height: 28px;
       }
       
       .web-viewer-card-title {
@@ -212,6 +277,15 @@ export class WebViewerWidget {
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         line-height: 1.3;
+      }
+      
+      .size-small .web-viewer-card-title {
+        font-size: 11px;
+        -webkit-line-clamp: 1;
+      }
+      
+      .size-large .web-viewer-card-title {
+        font-size: 14px;
       }
       
       .web-viewer-card-remove {
@@ -378,6 +452,7 @@ export class WebViewerWidget {
     this.grid = grid;
     this.editBtn = header.querySelector('.edit-links-btn');
     this.tabModeBtn = header.querySelector('.tab-mode-btn');
+    this.sizeBtn = header.querySelector('.size-toggle-btn');
   }
   
   createLinkCard(link, index) {
@@ -466,6 +541,19 @@ export class WebViewerWidget {
       this.toggleEditMode();
     });
     
+    // Size toggle button
+    this.sizeBtn.addEventListener('click', async () => {
+      // Cycle through sizes: small -> medium -> large -> small
+      const sizes = ['small', 'medium', 'large'];
+      const currentIndex = sizes.indexOf(this.iconSize);
+      this.iconSize = sizes[(currentIndex + 1) % sizes.length];
+      
+      // Update grid class
+      this.grid.className = `web-viewer-grid size-${this.iconSize}`;
+      
+      await this.saveState();
+    });
+    
     // Tab mode button
     this.tabModeBtn.addEventListener('click', async () => {
       this.openInNewTab = !this.openInNewTab;
@@ -487,6 +575,7 @@ export class WebViewerWidget {
       chrome.windows.create({
         url: link.url,
         type: 'popup',  // This removes the address bar and most UI
+        state: 'normal',  // Ensures it's a normal window that doesn't auto-close
         width: width,
         height: height,
         left: left,

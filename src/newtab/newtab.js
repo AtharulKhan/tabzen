@@ -6,6 +6,7 @@ import { WidgetManager } from '../utils/widgetManager.js';
 import { ThemeManager } from '../utils/theme.js';
 import { DragAndDrop } from '../utils/dragAndDrop.js';
 import { BookmarksManager } from '../utils/bookmarks.js';
+import { WidgetResize } from '../utils/widgetResize.js';
 
 // Import widgets
 import { QuickLinksWidget } from '../widgets/quickLinks.js';
@@ -25,6 +26,7 @@ class TabZenApp {
     this.widgetManager = new WidgetManager(this.storage, this.eventBus);
     this.bookmarksManager = new BookmarksManager();
     this.dragAndDrop = null;
+    this.widgetResize = null;
     
     // Search state
     this.searchTimeout = null;
@@ -76,6 +78,9 @@ class TabZenApp {
     
     // Initialize drag and drop
     this.initDragAndDrop();
+    
+    // Initialize resize
+    this.initResize();
     
     // Start timers
     this.startTimers();
@@ -158,7 +163,7 @@ class TabZenApp {
     
     this.widgetManager.registerWidget('webViewer', WebViewerWidget, {
       name: 'Web Launcher',
-      description: 'Quick access to your favorite sites',
+      description: 'Open your favorite sites in clean popup windows',
       icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
         <path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"></path>
@@ -217,6 +222,7 @@ class TabZenApp {
       const value = e.target.value;
       document.documentElement.style.setProperty('--grid-columns', value);
       this.storage.updateSettings({ gridColumns: parseInt(value) });
+      this.eventBus.emit('gridColumnsChanged', parseInt(value));
     });
     
     this.elements.widgetGap.addEventListener('change', (e) => {
@@ -339,6 +345,29 @@ class TabZenApp {
       if (widgetElement) {
         this.dragAndDrop.makeWidgetDraggable(widgetElement);
       }
+    });
+  }
+  
+  initResize() {
+    const gridColumns = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-columns')) || 4;
+    
+    this.widgetResize = new WidgetResize(this.elements.widgetGrid, {
+      gridColumns: gridColumns,
+      onResize: async (widgetId, newSize) => {
+        // Save the new size
+        const widgetData = await this.storage.getWidget(widgetId);
+        if (widgetData) {
+          widgetData.size = newSize;
+          await this.storage.saveWidget(widgetId, widgetData);
+        }
+      }
+    });
+    
+    this.widgetResize.init();
+    
+    // Update grid columns when settings change
+    this.eventBus.on('gridColumnsChanged', (columns) => {
+      this.widgetResize.updateGridColumns(columns);
     });
   }
   
