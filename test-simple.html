@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TabZen Simple Test</title>
+</head>
+<body>
+    <h1>TabZen Module Test</h1>
+    <div id="status">Loading modules...</div>
+    <div id="errors" style="color: red;"></div>
+    
+    <script type="module">
+        const statusEl = document.getElementById('status');
+        const errorsEl = document.getElementById('errors');
+        
+        try {
+            // Test importing the command palette
+            const { CommandPalette } = await import('./src/utils/commandPalette.js');
+            statusEl.innerHTML += '<br>✅ CommandPalette loaded';
+            
+            // Test importing the command registry
+            const { CommandRegistry } = await import('./src/utils/commands.js');
+            statusEl.innerHTML += '<br>✅ CommandRegistry loaded';
+            
+            // Test creating instances
+            const palette = new CommandPalette();
+            statusEl.innerHTML += '<br>✅ CommandPalette instance created';
+            
+            const registry = new CommandRegistry(palette);
+            statusEl.innerHTML += '<br>✅ CommandRegistry instance created';
+            
+            // Test command count
+            const commands = palette.getCommands();
+            statusEl.innerHTML += `<br>✅ ${commands.length} commands registered`;
+            
+            statusEl.innerHTML += '<br><br><strong>All modules loaded successfully!</strong>';
+            
+        } catch (error) {
+            errorsEl.innerHTML = `<h2>Error:</h2><pre>${error.stack}</pre>`;
+        }
+    </script>
+</body>
+</html>

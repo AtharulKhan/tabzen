@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Command Palette Test</title>
+    <link rel="stylesheet" href="src/styles/global.css">
+    <link rel="stylesheet" href="src/styles/commandPalette.css">
+    <style>
+        body {
+            padding: 50px;
+            background: var(--background);
+            color: var(--foreground);
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            margin-bottom: 30px;
+        }
+        
+        .instructions {
+            background: var(--surface);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .keyboard-shortcut {
+            display: inline-block;
+            padding: 4px 8px;
+            background: var(--secondary-bg);
+            border-radius: 4px;
+            font-family: monospace;
+            font-weight: 500;
+        }
+        
+        .test-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background: var(--primary-hover);
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Command Palette Test</h1>
+        
+        <div class="instructions">
+            <h2>Instructions</h2>
+            <p>Press <span class="keyboard-shortcut">Cmd/Ctrl + Shift + P</span> to open the command palette.</p>
+            
+            <h3>Try these searches:</h3>
+            <ul>
+                <li>Type "theme" to find theme-related commands</li>
+                <li>Type "widget" to see widget commands</li>
+                <li>Type "space" for space management</li>
+                <li>Type any partial word for fuzzy matching</li>
+                <li>Recently used commands will appear at the top</li>
+            </ul>
+            
+            <h3>Navigation:</h3>
+            <ul>
+                <li><span class="keyboard-shortcut">↑↓</span> Navigate through commands</li>
+                <li><span class="keyboard-shortcut">Enter</span> Execute selected command</li>
+                <li><span class="keyboard-shortcut">Escape</span> Close the palette</li>
+            </ul>
+        </div>
+        
+        <div class="test-actions">
+            <button id="toggleTheme">Toggle Theme</button>
+            <button id="openPalette">Open Command Palette</button>
+            <button id="addTestCommand">Add Test Command</button>
+        </div>
+    </div>
+
+    <!-- Load command palette scripts -->
+    <script src="src/utils/commandPalette.js"></script>
+    <script src="src/utils/commands.js"></script>
+    
+    <script>
+        // Initialize theme
+        const theme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        
+        // Initialize command palette
+        const commandPalette = new CommandPalette();
+        window.commandPalette = commandPalette;
+        
+        // Mock some necessary globals for testing
+        window.widgetManager = {
+            getNextAvailablePosition: () => ({ x: 0, y: 0 }),
+            addWidget: async (type, position) => {
+                console.log(`Adding widget: ${type} at position:`, position);
+                alert(`Would add ${type} widget`);
+            }
+        };
+        
+        window.themeManager = {
+            toggleTheme: () => {
+                const currentTheme = document.documentElement.getAttribute('data-theme');
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                return newTheme;
+            }
+        };
+        
+        window.spaceManager = {
+            switchToNextSpace: () => alert('Would switch to next space'),
+            switchToPreviousSpace: () => alert('Would switch to previous space'),
+            getCurrentSpace: () => ({ name: 'Test Space', id: 'test' })
+        };
+        
+        window.eventBus = {
+            emit: (event, data) => console.log('Event:', event, data)
+        };
+        
+        window.widgetRegistry = {
+            quickLinks: { name: 'Quick Links', description: 'Fast access to your favorite websites', icon: '🔗' },
+            todos: { name: 'To-Do List', description: 'Keep track of your tasks', icon: '✅' },
+            notes: { name: 'Notes', description: 'Quick notes and thoughts', icon: '📝' }
+        };
+        
+        // Initialize command registry
+        const commandRegistry = new CommandRegistry(commandPalette);
+        
+        // Test button handlers
+        document.getElementById('toggleTheme').addEventListener('click', () => {
+            window.themeManager.toggleTheme();
+        });
+        
+        document.getElementById('openPalette').addEventListener('click', () => {
+            commandPalette.open();
+        });
+        
+        let testCommandCount = 0;
+        document.getElementById('addTestCommand').addEventListener('click', () => {
+            testCommandCount++;
+            commandPalette.registerCommand({
+                id: `test:command:${testCommandCount}`,
+                name: `Test Command ${testCommandCount}`,
+                description: `This is test command number ${testCommandCount}`,
+                icon: '🧪',
+                category: 'Test Commands',
+                action: () => {
+                    alert(`Test command ${testCommandCount} executed!`);
+                }
+            });
+            alert(`Added Test Command ${testCommandCount}. Open the palette to see it!`);
+        });
+        
+        console.log('Command Palette Test Page Ready!');
+        console.log('Commands registered:', commandPalette.getCommands().length);
+    </script>
+</body>
+</html>

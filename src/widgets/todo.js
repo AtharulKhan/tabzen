@@ -15,6 +15,7 @@ export class TodoWidget {
     await this.loadState();
     this.render();
     this.attachListeners();
+    this.registerCommands();
   }
   
   async loadState() {
@@ -373,5 +374,67 @@ export class TodoWidget {
   
   destroy() {
     // Clean up if needed
+  }
+
+  registerCommands() {
+    if (!window.commandPalette) return;
+
+    // Add todo command
+    window.commandPalette.registerCommand({
+      id: `widget:${this.id}:add-todo`,
+      name: 'Add Todo Item',
+      description: 'Quickly add a new todo item',
+      icon: '✅',
+      category: 'Widget Actions',
+      aliases: ['new todo', 'create task'],
+      action: () => {
+        this.todoInput.focus();
+      }
+    });
+
+    // Clear completed todos
+    window.commandPalette.registerCommand({
+      id: `widget:${this.id}:clear-completed`,
+      name: 'Clear Completed Todos',
+      description: 'Remove all completed todo items',
+      icon: '🗑️',
+      category: 'Widget Actions',
+      aliases: ['delete completed', 'remove done'],
+      action: () => {
+        const completed = this.todos.filter(t => t.completed).length;
+        if (completed > 0) {
+          if (confirm(`Clear ${completed} completed tasks?`)) {
+            this.todos = this.todos.filter(t => !t.completed);
+            this.saveState();
+            this.renderTodos();
+          }
+        } else {
+          alert('No completed tasks to clear');
+        }
+      }
+    });
+
+    // Mark all as complete
+    window.commandPalette.registerCommand({
+      id: `widget:${this.id}:mark-all-complete`,
+      name: 'Mark All Todos Complete',
+      description: 'Mark all todo items as completed',
+      icon: '✔️',
+      category: 'Widget Actions',
+      action: () => {
+        const active = this.todos.filter(t => !t.completed).length;
+        if (active > 0) {
+          if (confirm(`Mark ${active} tasks as completed?`)) {
+            this.todos.forEach(todo => {
+              todo.completed = true;
+            });
+            this.saveState();
+            this.renderTodos();
+          }
+        } else {
+          alert('All tasks are already completed');
+        }
+      }
+    });
   }
 }

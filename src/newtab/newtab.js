@@ -8,6 +8,8 @@ import { ThemeManager } from '../utils/theme.js';
 import { DragAndDrop } from '../utils/dragAndDrop.js';
 import { BookmarksManager } from '../utils/bookmarks.js';
 import { WidgetResize } from '../utils/widgetResize.js';
+import { CommandPalette } from '../utils/commandPalette.js';
+import { CommandRegistry } from '../utils/commands.js';
 
 // Import widgets
 import { QuickLinksWidget } from '../widgets/quickLinks.js';
@@ -28,6 +30,8 @@ class TabZenApp {
     this.spaceManager = new SpaceManager(this.storage, this.eventBus);
     this.widgetManager = new WidgetManager(this.storage, this.eventBus, this.spaceManager);
     this.bookmarksManager = new BookmarksManager();
+    this.commandPalette = null;
+    this.commandRegistry = null;
     this.dragAndDrop = null;
     this.widgetResize = null;
     
@@ -54,6 +58,8 @@ class TabZenApp {
       importFileInput: document.getElementById('importFileInput'),
       searchInput: document.getElementById('searchInput'),
       searchResults: document.getElementById('searchResults'),
+      searchHelpBtn: document.getElementById('searchHelpBtn'),
+      searchHelp: document.getElementById('searchHelp'),
       themeSelect: document.getElementById('themeSelect'),
       backgroundType: document.getElementById('backgroundType'),
       gradientPresets: document.getElementById('gradientPresets'),
@@ -75,47 +81,57 @@ class TabZenApp {
   }
   
   async init() {
-    // Register widgets
-    this.registerWidgets();
-    
-    // Initialize space manager
-    await this.spaceManager.init();
-    
-    // Load settings
-    await this.loadSettings();
-    
-    // Initialize UI
-    this.updateDateTime();
-    this.updateGreeting();
-    
-    // Set up event listeners
-    this.setupEventListeners();
-    
-    // Initialize spaces
-    this.initSpaceTabs();
-    
-    // Initialize search
-    this.initSearch();
-    
-    // Load widgets for current space
-    await this.widgetManager.loadWidgets(this.elements.widgetGrid);
-    
-    // Initialize drag and drop
-    this.initDragAndDrop();
-    
-    // Initialize resize
-    this.initResize();
-    
-    // Start timers
-    this.startTimers();
-    
-    // Listen for space switches
-    this.eventBus.on('space:switched', async () => {
+    try {
+      // Register widgets
+      this.registerWidgets();
+      
+      // Initialize space manager
+      await this.spaceManager.init();
+      
+      // Load settings
+      await this.loadSettings();
+      
+      // Initialize UI
+      this.updateDateTime();
+      this.updateGreeting();
+      
+      // Set up event listeners
+      this.setupEventListeners();
+      
+      // Initialize spaces
+      this.initSpaceTabs();
+      
+      // Initialize search
+      this.initSearch();
+      
+      // Initialize command palette
+      this.initCommandPalette();
+      
+      // Load widgets for current space
       await this.widgetManager.loadWidgets(this.elements.widgetGrid);
+      
+      // Initialize drag and drop
       this.initDragAndDrop();
+      
+      // Initialize resize
       this.initResize();
-      this.renderSpaceTabs(); // Update active tab indicator
-    });
+      
+      // Start timers
+      this.startTimers();
+      
+      // Listen for space switches
+      this.eventBus.on('space:switched', async () => {
+        await this.widgetManager.loadWidgets(this.elements.widgetGrid);
+        this.initDragAndDrop();
+        this.initResize();
+        this.renderSpaceTabs(); // Update active tab indicator
+      });
+      
+      console.log('TabZen initialized successfully');
+    } catch (error) {
+      console.error('Error during TabZen initialization:', error);
+      throw error;
+    }
   }
   
   registerWidgets() {
@@ -455,7 +471,9 @@ class TabZenApp {
       minute: '2-digit'
     });
     
-    this.elements.dateTime.textContent = `${date} • ${time}`;
+    if (this.elements.dateTime) {
+      this.elements.dateTime.textContent = `${date} • ${time}`;
+    }
   }
   
   updateGreeting() {
@@ -470,7 +488,9 @@ class TabZenApp {
       greeting += 'evening';
     }
     
-    this.elements.greeting.textContent = greeting;
+    if (this.elements.greeting) {
+      this.elements.greeting.textContent = greeting;
+    }
   }
   
   startTimers() {
@@ -605,6 +625,18 @@ class TabZenApp {
           !this.elements.searchResults.contains(e.target)) {
         this.hideSearchResults();
       }
+      
+      // Close help tooltip when clicking outside
+      if (!this.elements.searchHelpBtn.contains(e.target) && 
+          !this.elements.searchHelp.contains(e.target)) {
+        this.elements.searchHelp.classList.remove('visible');
+      }
+    });
+    
+    // Search help button
+    this.elements.searchHelpBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.elements.searchHelp.classList.toggle('visible');
     });
     
     // Re-focus when clicking on empty areas
@@ -631,37 +663,137 @@ class TabZenApp {
       return;
     }
     
-    // Debounce search
+    // Check for special search modes
+    if (query.startsWith('=')) {
+      // Calculator mode
+      this.handleCalculatorMode(query.substring(1).trim());
+      return;
+    } else if (query.startsWith('bookmarks:')) {
+      // Explicit bookmarks search
+      const searchQuery = query.substring('bookmarks:'.length).trim();
+      if (searchQuery) {
+        this.searchTimeout = setTimeout(async () => {
+          const results = await this.bookmarksManager.searchBookmarks(searchQuery);
+          this.displaySearchResults(results, searchQuery, 'bookmarks');
+        }, 150);
+      }
+      return;
+    } else if (query.startsWith('history:')) {
+      // History search
+      const searchQuery = query.substring('history:'.length).trim();
+      if (searchQuery) {
+        this.searchTimeout = setTimeout(async () => {
+          await this.searchHistory(searchQuery);
+        }, 150);
+      }
+      return;
+    } else if (query.startsWith('tabs:')) {
+      // Open tabs search
+      const searchQuery = query.substring('tabs:'.length).trim();
+      if (searchQuery) {
+        this.searchTimeout = setTimeout(async () => {
+          await this.searchTabs(searchQuery);
+        }, 150);
+      }
+      return;
+    } else if (query.startsWith('widgets:')) {
+      // Widget content search
+      const searchQuery = query.substring('widgets:'.length).trim();
+      if (searchQuery) {
+        this.searchTimeout = setTimeout(async () => {
+          await this.searchWidgets(searchQuery);
+        }, 150);
+      }
+      return;
+    }
+    
+    // Default: Search bookmarks
     this.searchTimeout = setTimeout(async () => {
       const results = await this.bookmarksManager.searchBookmarks(query);
       this.displaySearchResults(results, query);
     }, 150);
   }
   
-  displaySearchResults(results, query) {
+  displaySearchResults(results, query, type = 'bookmarks') {
     if (results.length === 0) {
       this.elements.searchResults.innerHTML = `
         <div class="search-no-results">
-          No bookmarks found for "${query}"
+          No ${type} found for "${query}"
         </div>
       `;
     } else {
       this.elements.searchResults.innerHTML = results
-        .map((bookmark, index) => `
-          <div class="search-result-item" data-index="${index}" data-url="${bookmark.url}">
-            <img class="search-result-icon" src="${this.bookmarksManager.getFaviconUrl(bookmark.url)}" alt="">
-            <div class="search-result-content">
-              <div class="search-result-title">${this.escapeHtml(bookmark.title)}</div>
-              <div class="search-result-url">${this.escapeHtml(bookmark.url)}</div>
-            </div>
-          </div>
-        `)
+        .map((item, index) => {
+          if (type === 'tabs') {
+            return `
+              <div class="search-result-item" data-index="${index}" data-tab-id="${item.id}" data-window-id="${item.windowId}">
+                <img class="search-result-icon" src="${item.favIconUrl || 'chrome://favicon/'}" alt="">
+                <div class="search-result-content">
+                  <div class="search-result-title">${this.escapeHtml(item.title)}</div>
+                  <div class="search-result-url">${this.escapeHtml(item.url)}</div>
+                </div>
+              </div>
+            `;
+          } else if (type === 'history') {
+            return `
+              <div class="search-result-item" data-index="${index}" data-url="${item.url}">
+                <img class="search-result-icon" src="${this.bookmarksManager.getFaviconUrl(item.url)}" alt="">
+                <div class="search-result-content">
+                  <div class="search-result-title">${this.escapeHtml(item.title || item.url)}</div>
+                  <div class="search-result-url">${this.escapeHtml(item.url)}</div>
+                  <div class="search-result-meta">${this.formatDate(item.lastVisitTime)}</div>
+                </div>
+              </div>
+            `;
+          } else if (type === 'widgets') {
+            return `
+              <div class="search-result-item widget-result" data-index="${index}" data-widget-id="${item.widgetId}">
+                <div class="search-result-icon">${item.icon}</div>
+                <div class="search-result-content">
+                  <div class="search-result-title">${this.escapeHtml(item.title)}</div>
+                  <div class="search-result-url">${this.escapeHtml(item.content)}</div>
+                  <div class="search-result-meta">${item.widgetName}</div>
+                </div>
+              </div>
+            `;
+          } else {
+            // Default: bookmarks
+            return `
+              <div class="search-result-item" data-index="${index}" data-url="${item.url}">
+                <img class="search-result-icon" src="${this.bookmarksManager.getFaviconUrl(item.url)}" alt="">
+                <div class="search-result-content">
+                  <div class="search-result-title">${this.escapeHtml(item.title)}</div>
+                  <div class="search-result-url">${this.escapeHtml(item.url)}</div>
+                </div>
+              </div>
+            `;
+          }
+        })
         .join('');
       
       // Add click handlers
       this.elements.searchResults.querySelectorAll('.search-result-item').forEach(item => {
         item.addEventListener('click', () => {
-          window.location.href = item.dataset.url;
+          if (type === 'tabs') {
+            // Switch to tab
+            const tabId = parseInt(item.dataset.tabId);
+            const windowId = parseInt(item.dataset.windowId);
+            chrome.tabs.update(tabId, { active: true });
+            chrome.windows.update(windowId, { focused: true });
+          } else if (type === 'widgets') {
+            // Focus on widget
+            const widgetId = item.dataset.widgetId;
+            const widgetEl = document.querySelector(`[data-widget-id="${widgetId}"]`);
+            if (widgetEl) {
+              widgetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              widgetEl.classList.add('highlight');
+              setTimeout(() => widgetEl.classList.remove('highlight'), 2000);
+            }
+            this.hideSearchResults();
+          } else {
+            // Navigate to URL
+            window.location.href = item.dataset.url;
+          }
         });
         
         item.addEventListener('mouseenter', () => {
@@ -694,9 +826,21 @@ class TabZenApp {
       case 'Enter':
         e.preventDefault();
         if (this.selectedResultIndex >= 0 && results[this.selectedResultIndex]) {
-          window.location.href = results[this.selectedResultIndex].dataset.url;
-        } else if (e.target.value.trim()) {
-          // Search on Google if no bookmark is selected
+          const selectedItem = results[this.selectedResultIndex];
+          if (selectedItem.classList.contains('calculator-result')) {
+            // Click handler will copy result
+            selectedItem.click();
+          } else if (selectedItem.dataset.url) {
+            window.location.href = selectedItem.dataset.url;
+          } else if (selectedItem.dataset.tabId) {
+            // Handle tab switching
+            selectedItem.click();
+          } else if (selectedItem.dataset.widgetId) {
+            // Handle widget focus
+            selectedItem.click();
+          }
+        } else if (e.target.value.trim() && !e.target.value.startsWith('=')) {
+          // Search on Google if no bookmark is selected and not in calculator mode
           const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(e.target.value)}`;
           window.location.href = searchUrl;
         }
@@ -735,6 +879,342 @@ class TabZenApp {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  // Calculator mode
+  handleCalculatorMode(expression) {
+    if (!expression) {
+      this.hideSearchResults();
+      return;
+    }
+
+    try {
+      // Basic safety check - only allow numbers, operators, parentheses, and decimal points
+      if (!/^[\d\s+\-*/().]+$/.test(expression)) {
+        this.elements.searchResults.innerHTML = `
+          <div class="search-result-item calculator-result">
+            <div class="search-result-icon">🧮</div>
+            <div class="search-result-content">
+              <div class="search-result-title">Invalid expression</div>
+              <div class="search-result-url">Only numbers and basic operators are allowed</div>
+            </div>
+          </div>
+        `;
+        this.elements.searchResults.classList.add('active');
+        return;
+      }
+      
+      // Safe math evaluation using a simple expression parser
+      const result = this.evaluateExpression(expression);
+      
+      this.elements.searchResults.innerHTML = `
+        <div class="search-result-item calculator-result" data-index="0">
+          <div class="search-result-icon">🧮</div>
+          <div class="search-result-content">
+            <div class="search-result-title">${expression} = ${result}</div>
+            <div class="search-result-url">Press Enter to copy result</div>
+          </div>
+        </div>
+      `;
+      
+      // Add click handler to copy result
+      const resultItem = this.elements.searchResults.querySelector('.calculator-result');
+      resultItem.addEventListener('click', () => {
+        navigator.clipboard.writeText(result.toString());
+        this.elements.searchInput.value = result.toString();
+        this.hideSearchResults();
+      });
+      
+      this.elements.searchResults.classList.add('active');
+    } catch (error) {
+      this.elements.searchResults.innerHTML = `
+        <div class="search-result-item calculator-result">
+          <div class="search-result-icon">🧮</div>
+          <div class="search-result-content">
+            <div class="search-result-title">Error in calculation</div>
+            <div class="search-result-url">${error.message}</div>
+          </div>
+        </div>
+      `;
+      this.elements.searchResults.classList.add('active');
+    }
+  }
+
+  // Safe expression evaluator that doesn't use eval or Function
+  evaluateExpression(expr) {
+    // Remove spaces
+    expr = expr.replace(/\s/g, '');
+    
+    // Convert to postfix notation and evaluate
+    const output = [];
+    const operators = [];
+    const precedence = { '+': 1, '-': 1, '*': 2, '/': 2 };
+    
+    let i = 0;
+    while (i < expr.length) {
+      // Handle numbers (including decimals)
+      if (/\d/.test(expr[i]) || expr[i] === '.') {
+        let num = '';
+        while (i < expr.length && (/\d/.test(expr[i]) || expr[i] === '.')) {
+          num += expr[i];
+          i++;
+        }
+        output.push(parseFloat(num));
+        continue;
+      }
+      
+      // Handle operators
+      if (['+', '-', '*', '/'].includes(expr[i])) {
+        // Handle negative numbers
+        if (expr[i] === '-' && (i === 0 || expr[i-1] === '(' || ['+', '-', '*', '/'].includes(expr[i-1]))) {
+          i++;
+          let num = '';
+          while (i < expr.length && (/\d/.test(expr[i]) || expr[i] === '.')) {
+            num += expr[i];
+            i++;
+          }
+          output.push(-parseFloat(num));
+          continue;
+        }
+        
+        while (operators.length > 0 && 
+               operators[operators.length - 1] !== '(' &&
+               precedence[operators[operators.length - 1]] >= precedence[expr[i]]) {
+          output.push(operators.pop());
+        }
+        operators.push(expr[i]);
+        i++;
+        continue;
+      }
+      
+      // Handle parentheses
+      if (expr[i] === '(') {
+        operators.push(expr[i]);
+        i++;
+        continue;
+      }
+      
+      if (expr[i] === ')') {
+        while (operators.length > 0 && operators[operators.length - 1] !== '(') {
+          output.push(operators.pop());
+        }
+        operators.pop(); // Remove the '('
+        i++;
+        continue;
+      }
+      
+      // Skip unknown characters
+      i++;
+    }
+    
+    // Pop remaining operators
+    while (operators.length > 0) {
+      output.push(operators.pop());
+    }
+    
+    // Evaluate postfix expression
+    const stack = [];
+    for (const token of output) {
+      if (typeof token === 'number') {
+        stack.push(token);
+      } else {
+        const b = stack.pop();
+        const a = stack.pop();
+        switch (token) {
+          case '+': stack.push(a + b); break;
+          case '-': stack.push(a - b); break;
+          case '*': stack.push(a * b); break;
+          case '/': 
+            if (b === 0) throw new Error('Division by zero');
+            stack.push(a / b); 
+            break;
+        }
+      }
+    }
+    
+    const result = stack[0];
+    // Round to avoid floating point issues
+    return Math.round(result * 100000000) / 100000000;
+  }
+
+  // Search browser history
+  async searchHistory(query) {
+    if (!query) {
+      this.hideSearchResults();
+      return;
+    }
+
+    try {
+      const results = await chrome.history.search({
+        text: query,
+        maxResults: 20
+      });
+      
+      this.displaySearchResults(results, query, 'history');
+    } catch (error) {
+      console.error('History search failed:', error);
+      this.elements.searchResults.innerHTML = `
+        <div class="search-no-results">
+          History search requires additional permissions
+        </div>
+      `;
+      this.elements.searchResults.classList.add('active');
+    }
+  }
+
+  // Search open tabs
+  async searchTabs(query) {
+    if (!query) {
+      this.hideSearchResults();
+      return;
+    }
+
+    try {
+      const tabs = await chrome.tabs.query({});
+      const results = tabs.filter(tab => 
+        tab.title.toLowerCase().includes(query.toLowerCase()) ||
+        tab.url.toLowerCase().includes(query.toLowerCase())
+      );
+      
+      this.displaySearchResults(results, query, 'tabs');
+    } catch (error) {
+      console.error('Tab search failed:', error);
+      this.elements.searchResults.innerHTML = `
+        <div class="search-no-results">
+          Tab search requires additional permissions
+        </div>
+      `;
+      this.elements.searchResults.classList.add('active');
+    }
+  }
+
+  // Search within widgets
+  async searchWidgets(query) {
+    if (!query) {
+      this.hideSearchResults();
+      return;
+    }
+
+    const results = [];
+    const widgets = document.querySelectorAll('.widget');
+    
+    widgets.forEach(widget => {
+      const widgetId = widget.dataset.widgetId;
+      const widgetType = widget.dataset.type;
+      
+      // Search in todo widgets
+      if (widgetType === 'todos') {
+        const todos = widget.querySelectorAll('.todo-item-text');
+        todos.forEach(todo => {
+          if (todo.textContent.toLowerCase().includes(query.toLowerCase())) {
+            results.push({
+              widgetId,
+              widgetName: 'To-Do List',
+              icon: '✅',
+              title: 'Todo Item',
+              content: todo.textContent
+            });
+          }
+        });
+      }
+      
+      // Search in notes widgets
+      if (widgetType === 'notes') {
+        const notesContent = widget.querySelector('textarea')?.value || '';
+        if (notesContent.toLowerCase().includes(query.toLowerCase())) {
+          const excerpt = this.getSearchExcerpt(notesContent, query);
+          results.push({
+            widgetId,
+            widgetName: 'Notes',
+            icon: '📝',
+            title: 'Note',
+            content: excerpt
+          });
+        }
+      }
+      
+      // Search in quick links
+      if (widgetType === 'quickLinks') {
+        const links = widget.querySelectorAll('.quick-link');
+        links.forEach(link => {
+          const title = link.querySelector('.quick-link-title')?.textContent || '';
+          const url = link.dataset.url || '';
+          if (title.toLowerCase().includes(query.toLowerCase()) || 
+              url.toLowerCase().includes(query.toLowerCase())) {
+            results.push({
+              widgetId,
+              widgetName: 'Quick Links',
+              icon: '🔗',
+              title: title,
+              content: url
+            });
+          }
+        });
+      }
+    });
+    
+    this.displaySearchResults(results, query, 'widgets');
+  }
+
+  // Helper to get search excerpt
+  getSearchExcerpt(text, query) {
+    const index = text.toLowerCase().indexOf(query.toLowerCase());
+    if (index === -1) return text.substring(0, 100) + '...';
+    
+    const start = Math.max(0, index - 50);
+    const end = Math.min(text.length, index + query.length + 50);
+    let excerpt = text.substring(start, end);
+    
+    if (start > 0) excerpt = '...' + excerpt;
+    if (end < text.length) excerpt = excerpt + '...';
+    
+    return excerpt;
+  }
+
+  // Format date for display
+  formatDate(timestamp) {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} minutes ago`;
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffDays < 7) return `${diffDays} days ago`;
+    
+    return date.toLocaleDateString();
+  }
+
+  // Initialize command palette
+  initCommandPalette() {
+    // Create command palette instance
+    this.commandPalette = new CommandPalette();
+    
+    // Make it globally accessible for other components
+    window.commandPalette = this.commandPalette;
+    
+    // Make TabZenApp components accessible
+    window.widgetManager = this.widgetManager;
+    window.spaceManager = this.spaceManager;
+    window.themeManager = this.themeManager;
+    window.eventBus = this.eventBus;
+    window.widgetRegistry = this.widgetManager.widgetRegistry;
+    
+    // Initialize command registry
+    this.commandRegistry = new CommandRegistry(this.commandPalette);
+    
+    // Register widget-specific commands dynamically
+    this.eventBus.on(Events.WIDGET_ADD, ({ widgetId, widgetType }) => {
+      // Allow widgets to register their own commands
+      const widgetEl = document.querySelector(`[data-widget-id="${widgetId}"]`);
+      if (widgetEl && widgetEl.widgetInstance && widgetEl.widgetInstance.registerCommands) {
+        widgetEl.widgetInstance.registerCommands(this.commandPalette);
+      }
+    });
   }
   
   async updateBackgroundFromSettings() {
@@ -1019,5 +1499,17 @@ class TabZenApp {
 
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-  new TabZenApp();
+  try {
+    new TabZenApp();
+  } catch (error) {
+    console.error('Failed to initialize TabZen:', error);
+    // Show error to user
+    document.body.innerHTML = `
+      <div style="padding: 20px; text-align: center; color: red;">
+        <h1>Error Loading TabZen</h1>
+        <p>${error.message}</p>
+        <pre style="text-align: left; background: #f0f0f0; padding: 10px; margin: 20px auto; max-width: 600px;">${error.stack}</pre>
+      </div>
+    `;
+  }
 });

@@ -30,6 +30,19 @@
   --muted: hsl(0, 0%, 60%);
   --foreground: hsl(0, 0%, 10%);
   
+  /* Command Palette specific */
+  --text-primary: hsl(0, 0%, 10%);
+  --text-secondary: hsl(0, 0%, 45%);
+  --widget-bg: hsl(0, 0%, 100%);
+  --input-bg: hsl(0, 0%, 97%);
+  --input-bg-focus: hsl(0, 0%, 95%);
+  --hover-bg: hsl(0, 0%, 97%);
+  --secondary-bg: hsl(0, 0%, 95%);
+  --scrollbar-thumb: hsl(0, 0%, 80%);
+  --scrollbar-thumb-hover: hsl(0, 0%, 70%);
+  --primary-color: hsl(217, 91%, 60%);
+  --border-color: hsl(0, 0%, 90%);
+  
   /* Spacing */
   --space-2xs: 2px;
   --space-xs: 4px;
@@ -80,6 +93,19 @@
   --border: hsl(0, 0%, 20%);
   --muted: hsl(0, 0%, 40%);
   --foreground: hsl(0, 0%, 95%);
+  
+  /* Command Palette specific - Dark */
+  --text-primary: hsl(0, 0%, 95%);
+  --text-secondary: hsl(0, 0%, 65%);
+  --widget-bg: hsl(0, 0%, 12%);
+  --input-bg: hsl(0, 0%, 15%);
+  --input-bg-focus: hsl(0, 0%, 18%);
+  --hover-bg: hsl(0, 0%, 15%);
+  --secondary-bg: hsl(0, 0%, 18%);
+  --scrollbar-thumb: hsl(0, 0%, 30%);
+  --scrollbar-thumb-hover: hsl(0, 0%, 40%);
+  --primary-color: hsl(217, 91%, 60%);
+  --border-color: hsl(0, 0%, 20%);
   
   --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.3);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3);

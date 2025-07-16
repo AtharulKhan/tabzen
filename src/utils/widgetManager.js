@@ -10,12 +10,14 @@ export class WidgetManager {
     this.widgets = new Map(); // Widget instances
     this.widgetTypes = new Map(); // Widget constructors
     this.widgetConfigs = new Map(); // Widget configurations
+    this.widgetRegistry = {}; // Public registry for command palette
   }
   
   // Register a widget type
   registerWidget(id, WidgetClass, config) {
     this.widgetTypes.set(id, WidgetClass);
     this.widgetConfigs.set(id, config);
+    this.widgetRegistry[id] = config;
   }
   
   // Get available widgets (not yet added)
@@ -130,6 +132,9 @@ export class WidgetManager {
       
       // Store widget instance
       this.widgets.set(widgetId, widget);
+      
+      // Store widget instance on DOM element for command palette integration
+      widgetElement.widgetInstance = widget;
       
       // Set up widget actions
       header.querySelector('.widget-remove-btn').addEventListener('click', () => {

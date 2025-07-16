@@ -12,7 +12,8 @@
     "tabs",
     "tabGroups",
     "sessions",
-    "webNavigation"
+    "webNavigation",
+    "history"
   ],
   
   "chrome_url_overrides": {

@@ -6,6 +6,7 @@
   <title>New Tab - TabZen</title>
   <link rel="stylesheet" href="../styles/global.css">
   <link rel="stylesheet" href="newtab.css">
+  <link rel="stylesheet" href="../styles/commandPalette.css">
 </head>
 <body>
   <div class="app-container">
@@ -73,7 +74,42 @@
           autofocus
           tabindex="1"
         >
+        <button class="search-help-btn" id="searchHelpBtn" aria-label="Search help">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+        </button>
         <div id="searchResults" class="search-results"></div>
+        <div id="searchHelp" class="search-help-tooltip">
+          <div class="search-help-title">Search Tips</div>
+          <div class="search-help-item">
+            <span class="search-help-prefix">=</span>
+            <span>Calculator (e.g., = 2+2)</span>
+          </div>
+          <div class="search-help-item">
+            <span class="search-help-prefix">bookmarks:</span>
+            <span>Search bookmarks</span>
+          </div>
+          <div class="search-help-item">
+            <span class="search-help-prefix">history:</span>
+            <span>Search browser history</span>
+          </div>
+          <div class="search-help-item">
+            <span class="search-help-prefix">tabs:</span>
+            <span>Search open tabs</span>
+          </div>
+          <div class="search-help-item">
+            <span class="search-help-prefix">widgets:</span>
+            <span>Search widget content</span>
+          </div>
+          <div class="search-help-divider"></div>
+          <div class="search-help-item">
+            <span class="search-help-key">Cmd/Ctrl + Shift + P</span>
+            <span>Command Palette</span>
+          </div>
+        </div>
       </div>
     </div>
 
