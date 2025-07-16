@@ -60,10 +60,15 @@ class TabZenApp {
       solidColorPicker: document.getElementById('solidColorPicker'),
       backgroundColor: document.getElementById('backgroundColor'),
       backgroundOpacity: document.getElementById('backgroundOpacity'),
-      sidebar: document.getElementById('sidebar'),
-      sidebarToggle: document.getElementById('sidebarToggle'),
-      spacesList: document.getElementById('spacesList'),
-      addSpaceBtn: document.getElementById('addSpaceBtn')
+      spaceTabs: document.getElementById('spaceTabs'),
+      addSpaceBtn: document.getElementById('addSpaceBtn'),
+      spaceEditorModal: document.getElementById('spaceEditorModal'),
+      closeSpaceEditorBtn: document.getElementById('closeSpaceEditorBtn'),
+      spaceEditorTitle: document.getElementById('spaceEditorTitle'),
+      spaceNameInput: document.getElementById('spaceNameInput'),
+      iconPicker: document.getElementById('iconPicker'),
+      saveSpaceBtn: document.getElementById('saveSpaceBtn'),
+      cancelSpaceBtn: document.getElementById('cancelSpaceBtn')
     };
     
     this.init();
@@ -86,8 +91,8 @@ class TabZenApp {
     // Set up event listeners
     this.setupEventListeners();
     
-    // Initialize sidebar and spaces
-    this.initSidebar();
+    // Initialize spaces
+    this.initSpaceTabs();
     
     // Initialize search
     this.initSearch();
@@ -109,6 +114,7 @@ class TabZenApp {
       await this.widgetManager.loadWidgets(this.elements.widgetGrid);
       this.initDragAndDrop();
       this.initResize();
+      this.renderSpaceTabs(); // Update active tab indicator
     });
   }
   
@@ -343,22 +349,37 @@ class TabZenApp {
       await this.updateBackgroundFromSettings();
     });
     
-    // Sidebar toggle
-    this.elements.sidebarToggle?.addEventListener('click', () => {
-      this.toggleSidebar();
+    // Add space button
+    this.elements.addSpaceBtn?.addEventListener('click', () => {
+      this.showSpaceEditor();
     });
     
-    // Sidebar tab click (for opening when minimized)
-    const sidebarTab = document.querySelector('.sidebar-tab');
-    sidebarTab?.addEventListener('click', () => {
-      if (this.elements.sidebar.classList.contains('minimized')) {
-        this.toggleSidebar();
+    // Space editor modal events
+    this.elements.closeSpaceEditorBtn?.addEventListener('click', () => {
+      this.hideSpaceEditor();
+    });
+    
+    this.elements.cancelSpaceBtn?.addEventListener('click', () => {
+      this.hideSpaceEditor();
+    });
+    
+    this.elements.saveSpaceBtn?.addEventListener('click', () => {
+      this.saveSpace();
+    });
+    
+    // Close modal on outside click
+    this.elements.spaceEditorModal?.addEventListener('click', (e) => {
+      if (e.target === this.elements.spaceEditorModal) {
+        this.hideSpaceEditor();
       }
     });
     
-    // Add space button
-    this.elements.addSpaceBtn?.addEventListener('click', () => {
-      this.showAddSpaceModal();
+    // Handle Enter key in space name input
+    this.elements.spaceNameInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        this.saveSpace();
+      }
     });
     
     // Data export/import
@@ -773,269 +794,211 @@ class TabZenApp {
     `;
   }
   
-  // Sidebar methods
-  initSidebar() {
-    this.renderSpaces();
+  // Space Tab methods
+  initSpaceTabs() {
+    this.renderSpaceTabs();
+    this.currentEditingSpaceId = null;
+    this.selectedIcon = '🌟';
+    this.initializeIconPicker();
   }
   
-  toggleSidebar() {
-    const isMinimized = this.elements.sidebar.classList.contains('minimized');
-    
-    if (isMinimized) {
-      this.elements.sidebar.classList.remove('minimized');
-      document.body.classList.add('sidebar-expanded');
-    } else {
-      this.elements.sidebar.classList.add('minimized');
-      document.body.classList.remove('sidebar-expanded');
-    }
-  }
-  
-  renderSpaces() {
+  renderSpaceTabs() {
     const spaces = this.spaceManager.getAllSpaces();
     const currentSpace = this.spaceManager.getCurrentSpace();
     
-    this.elements.spacesList.innerHTML = spaces.map(space => `
-      <div class="space-item ${space.id === currentSpace.id ? 'active' : ''}" data-space-id="${space.id}">
-        <div class="space-icon">${space.icon}</div>
-        <div class="space-name">${this.escapeHtml(space.name)}</div>
-        <div class="space-actions">
-          <button class="space-action-btn" data-action="edit" title="Edit space">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-            </svg>
-          </button>
-          ${spaces.length > 1 ? `
-            <button class="space-action-btn" data-action="delete" title="Delete space">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
-              </svg>
-            </button>
-          ` : ''}
-        </div>
-      </div>
+    this.elements.spaceTabs.innerHTML = spaces.map(space => `
+      <button class="space-tab ${space.id === currentSpace.id ? 'active' : ''}" 
+              data-space-id="${space.id}" 
+              title="${this.escapeHtml(space.name)}">
+        ${space.icon}
+      </button>
     `).join('');
     
     // Add event listeners
-    this.elements.spacesList.querySelectorAll('.space-item').forEach(item => {
-      item.addEventListener('click', async (e) => {
-        // Handle action buttons
-        const actionBtn = e.target.closest('.space-action-btn');
-        if (actionBtn) {
-          e.stopPropagation();
-          const action = actionBtn.dataset.action;
-          const spaceId = item.dataset.spaceId;
-          
-          if (action === 'edit') {
-            this.showEditSpaceModal(spaceId);
-          } else if (action === 'delete') {
-            await this.deleteSpace(spaceId);
-          }
-          return;
-        }
-        
-        // Switch space
-        const spaceId = item.dataset.spaceId;
+    this.elements.spaceTabs.querySelectorAll('.space-tab').forEach(tab => {
+      tab.addEventListener('click', async (e) => {
+        const spaceId = tab.dataset.spaceId;
         if (spaceId !== this.spaceManager.currentSpaceId) {
           await this.spaceManager.switchSpace(spaceId);
-          this.renderSpaces();
+          this.renderSpaceTabs();
         }
       });
+      
+      // Add context menu for edit/delete
+      tab.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        this.showSpaceContextMenu(e, tab.dataset.spaceId);
+      });
     });
   }
   
-  showAddSpaceModal() {
-    const modal = this.createSpaceModal('Add New Space', '', (name, icon) => {
-      this.createSpace(name, icon);
-    });
-    document.body.appendChild(modal.backdrop);
-    document.body.appendChild(modal.modal);
-  }
-  
-  showEditSpaceModal(spaceId) {
-    const space = this.spaceManager.getAllSpaces().find(s => s.id === spaceId);
-    if (!space) return;
+  showSpaceContextMenu(event, spaceId) {
+    // Remove any existing context menu
+    const existingMenu = document.querySelector('.space-context-menu');
+    if (existingMenu) existingMenu.remove();
     
-    const modal = this.createSpaceModal('Edit Space', space.name, (name, icon) => {
-      this.updateSpace(spaceId, name, icon);
-    }, space.icon);
-    document.body.appendChild(modal.backdrop);
-    document.body.appendChild(modal.modal);
-  }
-  
-  createSpaceModal(title, defaultName, onSave, defaultIcon = '🌟') {
-    const backdrop = document.createElement('div');
-    backdrop.className = 'modal-backdrop';
-    
-    const modal = document.createElement('div');
-    modal.className = 'space-modal';
-    modal.innerHTML = `
-      <h3>${title}</h3>
-      <div class="space-modal-form">
-        <label>
-          <span>Name</span>
-          <input type="text" id="spaceName" value="${this.escapeHtml(defaultName)}" placeholder="Enter space name" maxlength="30">
-        </label>
-        <label>
-          <span>Icon</span>
-          <div class="icon-picker">
-            ${['🌟', '🏠', '💼', '🎯', '📚', '🎨', '🚀', '💡', '🌱', '🎮', '🏃', '🍕'].map(icon => `
-              <button class="icon-option ${icon === defaultIcon ? 'active' : ''}" data-icon="${icon}">${icon}</button>
-            `).join('')}
-          </div>
-        </label>
-      </div>
-      <div class="space-modal-actions">
-        <button class="btn btn-secondary" id="cancelSpace">Cancel</button>
-        <button class="btn btn-primary" id="saveSpace">Save</button>
-      </div>
+    const spaces = this.spaceManager.getAllSpaces();
+    const menu = document.createElement('div');
+    menu.className = 'space-context-menu';
+    menu.style.cssText = `
+      position: fixed;
+      left: ${event.clientX}px;
+      top: ${event.clientY}px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      z-index: 1000;
     `;
     
-    // Add styles
-    const styles = document.createElement('style');
-    styles.textContent = `
-      .space-modal {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: var(--surface);
-        padding: 24px;
-        border-radius: 12px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        z-index: 1000;
-        min-width: 400px;
-      }
-      
-      .space-modal h3 {
-        margin: 0 0 20px 0;
-        font-size: 18px;
-      }
-      
-      .space-modal-form label {
-        display: block;
-        margin-bottom: 16px;
-      }
-      
-      .space-modal-form label span {
-        display: block;
-        margin-bottom: 8px;
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--foreground);
-      }
-      
-      .space-modal-form input {
+    menu.innerHTML = `
+      <button class="context-menu-item" data-action="edit">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+        </svg>
+        Edit
+      </button>
+      ${spaces.length > 1 ? `
+        <button class="context-menu-item" data-action="delete">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+          </svg>
+          Delete
+        </button>
+      ` : ''}
+    `;
+    
+    // Add styles for context menu
+    const style = document.createElement('style');
+    style.textContent = `
+      .context-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         width: 100%;
         padding: 8px 12px;
-        border: 1px solid var(--border);
-        border-radius: 6px;
+        border: none;
+        background: transparent;
+        color: var(--text-primary);
         font-size: 14px;
-        background: var(--background);
-        color: var(--foreground);
-      }
-      
-      .icon-picker {
-        display: grid;
-        grid-template-columns: repeat(6, 1fr);
-        gap: 8px;
-      }
-      
-      .icon-option {
-        width: 48px;
-        height: 48px;
-        border: 2px solid var(--border);
-        background: var(--background);
-        border-radius: 8px;
-        font-size: 24px;
         cursor: pointer;
-        transition: all var(--transition-base);
+        border-radius: 4px;
+        transition: background 0.15s ease;
       }
-      
-      .icon-option:hover {
-        border-color: var(--primary);
-        transform: scale(1.05);
+      .context-menu-item:hover {
+        background: rgba(0,0,0,0.05);
       }
-      
-      .icon-option.active {
-        border-color: var(--primary);
-        background: var(--primary);
-      }
-      
-      .space-modal-actions {
-        display: flex;
-        gap: 8px;
-        justify-content: flex-end;
-        margin-top: 24px;
+      [data-theme="dark"] .context-menu-item:hover {
+        background: rgba(255,255,255,0.08);
       }
     `;
-    document.head.appendChild(styles);
+    document.head.appendChild(style);
     
-    // Event handlers
-    let selectedIcon = defaultIcon;
+    document.body.appendChild(menu);
     
-    modal.querySelectorAll('.icon-option').forEach(btn => {
-      btn.addEventListener('click', () => {
-        modal.querySelectorAll('.icon-option').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        selectedIcon = btn.dataset.icon;
+    // Handle menu item clicks
+    menu.querySelectorAll('.context-menu-item').forEach(item => {
+      item.addEventListener('click', async () => {
+        const action = item.dataset.action;
+        if (action === 'edit') {
+          this.showSpaceEditor(spaceId);
+        } else if (action === 'delete') {
+          await this.deleteSpace(spaceId);
+        }
+        menu.remove();
+        style.remove();
       });
     });
     
-    const nameInput = modal.querySelector('#spaceName');
-    const saveBtn = modal.querySelector('#saveSpace');
-    const cancelBtn = modal.querySelector('#cancelSpace');
-    
-    const handleSave = () => {
-      const name = nameInput.value.trim();
-      if (!name) {
-        nameInput.focus();
-        return;
+    // Close menu on outside click
+    const closeMenu = (e) => {
+      if (!menu.contains(e.target)) {
+        menu.remove();
+        style.remove();
+        document.removeEventListener('click', closeMenu);
       }
-      
-      onSave(name, selectedIcon);
-      backdrop.remove();
-      modal.remove();
-      styles.remove();
     };
+    setTimeout(() => document.addEventListener('click', closeMenu), 0);
+  }
+  
+  initializeIconPicker() {
+    const icons = ['🌟', '🏠', '💼', '🎯', '📚', '🎨', '🚀', '💡', '🌱', '🎮', '🏃', '🍕', 
+                   '🎵', '🏖️', '💻', '📱', '🎬', '📷', '✈️', '🌍', '🔥', '⚡', '🌈', '❤️'];
     
-    saveBtn.addEventListener('click', handleSave);
-    cancelBtn.addEventListener('click', () => {
-      backdrop.remove();
-      modal.remove();
-      styles.remove();
-    });
+    this.elements.iconPicker.innerHTML = icons.map(icon => `
+      <button class="icon-picker-item" data-icon="${icon}">${icon}</button>
+    `).join('');
     
-    nameInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleSave();
+    this.elements.iconPicker.addEventListener('click', (e) => {
+      const item = e.target.closest('.icon-picker-item');
+      if (item) {
+        this.elements.iconPicker.querySelectorAll('.icon-picker-item').forEach(i => 
+          i.classList.remove('selected'));
+        item.classList.add('selected');
+        this.selectedIcon = item.dataset.icon;
       }
     });
+  }
+  
+  showSpaceEditor(spaceId = null) {
+    this.currentEditingSpaceId = spaceId;
     
-    backdrop.addEventListener('click', () => {
-      backdrop.remove();
-      modal.remove();
-      styles.remove();
+    if (spaceId) {
+      const space = this.spaceManager.getAllSpaces().find(s => s.id === spaceId);
+      if (!space) return;
+      
+      this.elements.spaceEditorTitle.textContent = 'Edit Space';
+      this.elements.spaceNameInput.value = space.name;
+      this.selectedIcon = space.icon;
+    } else {
+      this.elements.spaceEditorTitle.textContent = 'New Space';
+      this.elements.spaceNameInput.value = '';
+      this.selectedIcon = '🌟';
+    }
+    
+    // Update selected icon
+    this.elements.iconPicker.querySelectorAll('.icon-picker-item').forEach(item => {
+      item.classList.toggle('selected', item.dataset.icon === this.selectedIcon);
     });
     
-    // Focus input
-    setTimeout(() => nameInput.focus(), 0);
+    this.elements.spaceEditorModal.style.display = 'flex';
+    setTimeout(() => this.elements.spaceNameInput.focus(), 100);
+  }
+  
+  hideSpaceEditor() {
+    this.elements.spaceEditorModal.style.display = 'none';
+    this.currentEditingSpaceId = null;
+  }
+  
+  async saveSpace() {
+    const name = this.elements.spaceNameInput.value.trim();
+    if (!name) {
+      this.elements.spaceNameInput.focus();
+      return;
+    }
     
-    return { backdrop, modal };
+    if (this.currentEditingSpaceId) {
+      await this.updateSpace(this.currentEditingSpaceId, name, this.selectedIcon);
+    } else {
+      await this.createSpace(name, this.selectedIcon);
+    }
+    
+    this.hideSpaceEditor();
   }
   
   async createSpace(name, icon) {
     const space = await this.spaceManager.createSpace(name);
     await this.spaceManager.updateSpace(space.id, { icon });
     await this.spaceManager.switchSpace(space.id);
-    this.renderSpaces();
+    this.renderSpaceTabs();
   }
   
   async updateSpace(spaceId, name, icon) {
     await this.spaceManager.updateSpace(spaceId, { name, icon });
-    this.renderSpaces();
+    this.renderSpaceTabs();
   }
   
   async deleteSpace(spaceId) {
@@ -1045,7 +1008,7 @@ class TabZenApp {
     
     try {
       await this.spaceManager.deleteSpace(spaceId);
-      this.renderSpaces();
+      this.renderSpaceTabs();
     } catch (error) {
       alert(error.message);
     }

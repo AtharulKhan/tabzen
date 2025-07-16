@@ -8,36 +8,6 @@
   <link rel="stylesheet" href="newtab.css">
 </head>
 <body>
-  <!-- Sidebar -->
-  <aside class="sidebar minimized" id="sidebar">
-    <div class="sidebar-tab">
-      <span>Spaces</span>
-    </div>
-    <div class="sidebar-header">
-      <h2 class="sidebar-title">Spaces</h2>
-      <button class="sidebar-close" id="sidebarToggle" aria-label="Close sidebar">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
-    </div>
-    
-    <div class="spaces-list" id="spacesList">
-      <!-- Spaces will be dynamically added here -->
-    </div>
-    
-    <div class="sidebar-footer">
-      <button class="add-space-btn" id="addSpaceBtn" aria-label="Add new space">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-        <span class="add-space-text">New Space</span>
-      </button>
-    </div>
-  </aside>
-  
   <div class="app-container">
     <!-- Header -->
     <header class="header">
@@ -70,6 +40,19 @@
         </button>
       </div>
     </header>
+
+    <!-- Space Tabs -->
+    <div class="space-tabs-container">
+      <div class="space-tabs" id="spaceTabs">
+        <!-- Space tabs will be dynamically added here -->
+      </div>
+      <button class="space-tab add-space-tab" id="addSpaceBtn" aria-label="Add new space">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+    </div>
 
     <!-- Search Bar -->
     <div class="search-container">
@@ -194,6 +177,39 @@
           <button class="btn btn-secondary" id="exportDataBtn">Export Data</button>
           <button class="btn btn-secondary" id="importDataBtn">Import Data</button>
           <input type="file" id="importFileInput" accept=".json" style="display: none;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Space Editor Modal -->
+  <div class="modal" id="spaceEditorModal">
+    <div class="modal-content modal-compact">
+      <div class="modal-header">
+        <h2 id="spaceEditorTitle">New Space</h2>
+        <button class="icon-button" id="closeSpaceEditorBtn" aria-label="Close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="space-editor-form">
+          <label class="form-label">
+            <span>Space Name</span>
+            <input type="text" id="spaceNameInput" class="form-input" placeholder="Enter space name" maxlength="30">
+          </label>
+          <label class="form-label">
+            <span>Icon</span>
+            <div class="icon-picker" id="iconPicker">
+              <!-- Icons will be dynamically added here -->
+            </div>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="cancelSpaceBtn">Cancel</button>
+          <button class="btn btn-primary" id="saveSpaceBtn">Save</button>
         </div>
       </div>
     </div>
