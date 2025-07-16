@@ -13,6 +13,8 @@ import { TodoWidget } from '../widgets/todo.js';
 import { NotesWidget } from '../widgets/notes.js';
 import { WeatherWidget } from '../widgets/weather.js';
 import { QuotesWidget } from '../widgets/quotes.js';
+import { CalendarWidget } from '../widgets/calendar.js';
+import { RecentTabsWidget } from '../widgets/recentTabs.js';
 
 class TabZenApp {
   constructor() {
@@ -130,6 +132,28 @@ class TabZenApp {
       </svg>`,
       defaultSize: '2x1'
     });
+    
+    this.widgetManager.registerWidget('calendar', CalendarWidget, {
+      name: 'Calendar',
+      description: 'View current month calendar',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line>
+        <line x1="8" y1="2" x2="8" y2="6"></line>
+        <line x1="3" y1="10" x2="21" y2="10"></line>
+      </svg>`,
+      defaultSize: '1x2'
+    });
+    
+    this.widgetManager.registerWidget('recentTabs', RecentTabsWidget, {
+      name: 'Recent Tabs',
+      description: 'Recently closed tabs',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+        <path d="M2 17l10 5 10-5M2 12l10 5 10-5"></path>
+      </svg>`,
+      defaultSize: '1x2'
+    });
   }
   
   async loadSettings() {
@@ -214,6 +238,13 @@ class TabZenApp {
         this.hideModal(this.elements.settingsModal);
         this.hideModal(this.elements.widgetGalleryModal);
         this.hideSearchResults();
+      }
+      
+      // Focus search on '/' key or Ctrl+K
+      if (e.key === '/' || (e.ctrlKey && e.key === 'k')) {
+        e.preventDefault();
+        this.elements.searchInput.focus();
+        this.elements.searchInput.select();
       }
     });
   }
@@ -336,8 +367,32 @@ class TabZenApp {
   
   // Search functionality
   initSearch() {
-    // Focus on search input
-    this.elements.searchInput.focus();
+    // Aggressive focus strategy
+    const focusSearchInput = () => {
+      this.elements.searchInput.focus();
+      this.elements.searchInput.select();
+    };
+    
+    // Initial focus
+    focusSearchInput();
+    
+    // Delayed focus to override browser defaults
+    setTimeout(focusSearchInput, 0);
+    setTimeout(focusSearchInput, 50);
+    setTimeout(focusSearchInput, 100);
+    setTimeout(focusSearchInput, 200);
+    
+    // Focus on visibility change
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        focusSearchInput();
+      }
+    });
+    
+    // Focus on window focus
+    window.addEventListener('focus', () => {
+      setTimeout(focusSearchInput, 50);
+    });
     
     // Search input handler
     this.elements.searchInput.addEventListener('input', (e) => {
@@ -354,6 +409,15 @@ class TabZenApp {
       if (!this.elements.searchInput.contains(e.target) && 
           !this.elements.searchResults.contains(e.target)) {
         this.hideSearchResults();
+      }
+    });
+    
+    // Re-focus when clicking on empty areas
+    document.addEventListener('click', (e) => {
+      if (e.target === document.body || 
+          e.target.classList.contains('app-container') ||
+          e.target.classList.contains('search-container')) {
+        focusSearchInput();
       }
     });
   }

@@ -13,6 +13,7 @@ export class QuickLinksWidget {
     this.isReordering = false;
     this.draggedElement = null;
     this.draggedIndex = null;
+    this.iconSize = this.savedData.iconSize || 'medium'; // small, medium, large
   }
   
   async init() {
@@ -23,11 +24,13 @@ export class QuickLinksWidget {
   
   async loadState() {
     this.links = this.savedData.links || [];
+    this.iconSize = this.savedData.iconSize || 'medium';
   }
   
   async saveState() {
     await this.storage.saveWidget(this.id, {
-      links: this.links
+      links: this.links,
+      iconSize: this.iconSize
     });
   }
   
@@ -40,6 +43,14 @@ export class QuickLinksWidget {
     const header = document.createElement('div');
     header.className = 'quick-links-header';
     header.innerHTML = `
+      <button class="size-toggle-btn" title="Toggle icon size">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+        </svg>
+      </button>
       <button class="reorder-mode-btn" title="Toggle reorder mode">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="7 10 12 5 17 10"></polyline>
@@ -58,7 +69,7 @@ export class QuickLinksWidget {
     
     // Create grid
     const grid = document.createElement('div');
-    grid.className = 'quick-links-grid';
+    grid.className = `quick-links-grid size-${this.iconSize}`;
     
     // Add styles
     const styles = document.createElement('style');
@@ -73,12 +84,13 @@ export class QuickLinksWidget {
         display: flex;
         justify-content: flex-end;
         gap: 8px;
-        margin-bottom: 8px;
+        margin-bottom: 12px;
         height: 24px;
       }
       
       .edit-mode-btn,
-      .reorder-mode-btn {
+      .reorder-mode-btn,
+      .size-toggle-btn {
         width: 24px;
         height: 24px;
         border: none;
@@ -90,45 +102,97 @@ export class QuickLinksWidget {
         align-items: center;
         justify-content: center;
         transition: all 0.2s ease;
+        opacity: 0.6;
       }
       
       .edit-mode-btn:hover,
-      .reorder-mode-btn:hover {
+      .reorder-mode-btn:hover,
+      .size-toggle-btn:hover {
+        opacity: 1;
         background: var(--surface-hover);
         color: var(--foreground);
       }
       
       .edit-mode-btn.active,
       .reorder-mode-btn.active {
+        opacity: 1;
         background: var(--primary);
         color: white;
       }
       
       .quick-links-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-        gap: 12px;
-        padding: 4px;
+        display: flex;
+        gap: var(--link-gap, 16px);
+        padding: 8px;
         flex: 1;
-        overflow-y: auto;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+      }
+      
+      .quick-links-grid.size-small {
+        --link-gap: 12px;
+      }
+      
+      .quick-links-grid.size-medium {
+        --link-gap: 16px;
+      }
+      
+      .quick-links-grid.size-large {
+        --link-gap: 20px;
+      }
+      
+      .quick-links-grid::-webkit-scrollbar {
+        height: 6px;
+      }
+      
+      .quick-links-grid::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      
+      .quick-links-grid::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+      }
+      
+      .quick-links-grid::-webkit-scrollbar-thumb:hover {
+        background: var(--muted);
       }
         
         .quick-link {
           display: flex;
           flex-direction: column;
           align-items: center;
-          padding: 12px 8px;
-          border-radius: 8px;
+          gap: 8px;
+          padding: 0;
           cursor: pointer;
           transition: all 0.2s ease;
           text-decoration: none;
           color: var(--foreground);
           position: relative;
+          flex-shrink: 0;
+          width: var(--link-width, 80px);
         }
         
-        .quick-link:hover {
-          background: var(--surface-hover);
-          transform: translateY(-2px);
+        .size-small .quick-link {
+          --link-width: 60px;
+          gap: 6px;
+        }
+        
+        .size-medium .quick-link {
+          --link-width: 80px;
+          gap: 8px;
+        }
+        
+        .size-large .quick-link {
+          --link-width: 100px;
+          gap: 10px;
+        }
+        
+        .quick-link:hover .quick-link-icon {
+          transform: scale(1.05);
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
         }
         
         .quick-link.dragging {
@@ -139,7 +203,6 @@ export class QuickLinksWidget {
         
         .quick-link.drag-over {
           transform: scale(1.1);
-          background: var(--primary);
           opacity: 0.3;
         }
         
@@ -152,62 +215,138 @@ export class QuickLinksWidget {
         }
         
         .quick-link-icon {
-          width: 32px;
-          height: 32px;
-          margin-bottom: 6px;
+          width: var(--icon-size, 64px);
+          height: var(--icon-size, 64px);
           display: flex;
           align-items: center;
           justify-content: center;
-          background: var(--surface);
-          border-radius: 8px;
+          background: white;
+          border-radius: var(--icon-radius, 16px);
           overflow: hidden;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          transition: all 0.2s ease;
+          position: relative;
+        }
+        
+        .size-small .quick-link-icon {
+          --icon-size: 48px;
+          --icon-radius: 12px;
+        }
+        
+        .size-medium .quick-link-icon {
+          --icon-size: 64px;
+          --icon-radius: 16px;
+        }
+        
+        .size-large .quick-link-icon {
+          --icon-size: 80px;
+          --icon-radius: 20px;
+        }
+        
+        [data-theme="dark"] .quick-link-icon {
+          background: var(--surface);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
         
         .quick-link-icon img {
-          width: 24px;
-          height: 24px;
+          width: var(--img-size, 36px);
+          height: var(--img-size, 36px);
+          object-fit: contain;
+        }
+        
+        .size-small .quick-link-icon img {
+          --img-size: 28px;
+        }
+        
+        .size-medium .quick-link-icon img {
+          --img-size: 36px;
+        }
+        
+        .size-large .quick-link-icon img {
+          --img-size: 44px;
         }
         
         .quick-link-icon svg {
-          width: 20px;
-          height: 20px;
-          color: var(--muted);
+          width: var(--svg-size, 32px);
+          height: var(--svg-size, 32px);
+          color: var(--primary);
+        }
+        
+        .size-small .quick-link-icon svg {
+          --svg-size: 24px;
+        }
+        
+        .size-medium .quick-link-icon svg {
+          --svg-size: 32px;
+        }
+        
+        .size-large .quick-link-icon svg {
+          --svg-size: 40px;
         }
         
         .quick-link-title {
-          font-size: 12px;
+          font-size: var(--title-size, 12px);
+          font-weight: 500;
           text-align: center;
-          max-width: 70px;
+          max-width: var(--link-width, 80px);
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+          color: var(--foreground);
+          opacity: 0.9;
+        }
+        
+        .size-small .quick-link-title {
+          --title-size: 11px;
+        }
+        
+        .size-medium .quick-link-title {
+          --title-size: 12px;
+        }
+        
+        .size-large .quick-link-title {
+          --title-size: 13px;
         }
         
         .add-link-btn {
           display: flex;
           flex-direction: column;
           align-items: center;
-          padding: 12px 8px;
-          border: 2px dashed var(--border);
-          border-radius: 8px;
+          gap: 8px;
+          padding: 0;
+          border: none;
           cursor: pointer;
           transition: all 0.2s ease;
           background: transparent;
           color: var(--muted);
+          flex-shrink: 0;
+          width: var(--link-width, 80px);
         }
         
-        .add-link-btn:hover {
+        .add-link-btn:hover .add-link-icon {
+          transform: scale(1.05);
           border-color: var(--primary);
           color: var(--primary);
-          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .add-link-icon {
+          width: var(--icon-size, 64px);
+          height: var(--icon-size, 64px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 2px dashed var(--border);
+          border-radius: var(--icon-radius, 16px);
+          transition: all 0.2s ease;
         }
         
         .quick-link-remove {
           position: absolute;
-          top: -4px;
-          right: -4px;
-          width: 20px;
-          height: 20px;
+          top: -8px;
+          right: -8px;
+          width: 24px;
+          height: 24px;
           background: var(--error);
           color: white;
           border-radius: 50%;
@@ -215,14 +354,15 @@ export class QuickLinksWidget {
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          font-size: 12px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          font-size: 14px;
+          font-weight: bold;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
           transition: transform 0.2s ease;
           z-index: 10;
         }
         
         .quick-link-remove:hover {
-          transform: scale(1.2);
+          transform: scale(1.1);
         }
         
         .quick-links-grid.editing .quick-link .quick-link-remove {
@@ -280,11 +420,13 @@ export class QuickLinksWidget {
     const addBtn = document.createElement('button');
     addBtn.className = 'add-link-btn';
     addBtn.innerHTML = `
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="12" y1="5" x2="12" y2="19"></line>
-        <line x1="5" y1="12" x2="19" y2="12"></line>
-      </svg>
-      <span class="quick-link-title">Add Link</span>
+      <div class="add-link-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </div>
+      <span class="quick-link-title">Add</span>
     `;
     grid.appendChild(addBtn);
     
@@ -302,6 +444,7 @@ export class QuickLinksWidget {
     this.addBtn = addBtn;
     this.editBtn = header.querySelector('.edit-mode-btn');
     this.reorderBtn = header.querySelector('.reorder-mode-btn');
+    this.sizeBtn = header.querySelector('.size-toggle-btn');
     
     // Update button states
     if (this.isEditing) {
@@ -356,8 +499,8 @@ export class QuickLinksWidget {
   getFaviconUrl(url) {
     try {
       const urlObj = new URL(url);
-      // Use Google's favicon service
-      return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=32`;
+      // Use Google's favicon service with larger size
+      return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64`;
     } catch {
       return null;
     }
@@ -390,6 +533,11 @@ export class QuickLinksWidget {
     // Reorder mode button
     this.reorderBtn.addEventListener('click', () => {
       this.toggleReorderMode();
+    });
+    
+    // Size toggle button
+    this.sizeBtn.addEventListener('click', () => {
+      this.toggleIconSize();
     });
     
     // Add link button
@@ -546,6 +694,20 @@ export class QuickLinksWidget {
       this.grid.classList.remove('editing');
       this.editBtn.classList.remove('active');
     }
+  }
+  
+  async toggleIconSize() {
+    // Cycle through sizes: small -> medium -> large -> small
+    const sizes = ['small', 'medium', 'large'];
+    const currentIndex = sizes.indexOf(this.iconSize);
+    this.iconSize = sizes[(currentIndex + 1) % sizes.length];
+    
+    // Save the new size
+    await this.saveState();
+    
+    // Re-render to apply new size
+    this.render();
+    this.attachListeners();
   }
   
   // Drag and drop handlers
