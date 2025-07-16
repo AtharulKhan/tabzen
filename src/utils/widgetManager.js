@@ -70,6 +70,7 @@ export class WidgetManager {
       widgetElement.className = `widget widget-${config.defaultSize || '1x1'}`;
       widgetElement.dataset.widgetId = widgetId;
       widgetElement.dataset.widgetType = type;
+      widgetElement.draggable = true;
       
       // Create widget header
       const header = document.createElement('div');

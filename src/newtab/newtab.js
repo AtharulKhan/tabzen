@@ -1,9 +1,10 @@
 // Main New Tab JavaScript
 
 import { StorageManager } from '../utils/storage.js';
-import { EventBus } from '../utils/eventBus.js';
+import { EventBus, Events } from '../utils/eventBus.js';
 import { WidgetManager } from '../utils/widgetManager.js';
 import { ThemeManager } from '../utils/theme.js';
+import { DragAndDrop } from '../utils/dragAndDrop.js';
 
 // Import widgets
 import { QuickLinksWidget } from '../widgets/quickLinks.js';
@@ -18,6 +19,7 @@ class TabZenApp {
     this.eventBus = new EventBus();
     this.themeManager = new ThemeManager();
     this.widgetManager = new WidgetManager(this.storage, this.eventBus);
+    this.dragAndDrop = null;
     
     this.elements = {
       greeting: document.getElementById('greeting'),
@@ -57,6 +59,9 @@ class TabZenApp {
     
     // Load widgets
     await this.widgetManager.loadWidgets(this.elements.widgetGrid);
+    
+    // Initialize drag and drop
+    this.initDragAndDrop();
     
     // Start timers
     this.startTimers();
@@ -261,6 +266,24 @@ class TabZenApp {
     
     // Update greeting every minute
     setInterval(() => this.updateGreeting(), 60000);
+  }
+  
+  initDragAndDrop() {
+    this.dragAndDrop = new DragAndDrop(this.elements.widgetGrid, {
+      onReorder: async (newOrder) => {
+        await this.widgetManager.updateWidgetOrder(newOrder);
+      }
+    });
+    
+    this.dragAndDrop.init();
+    
+    // Listen for widget additions to make them draggable
+    this.eventBus.on(Events.WIDGET_ADD, ({ widgetId }) => {
+      const widgetElement = document.querySelector(`[data-widget-id="${widgetId}"]`);
+      if (widgetElement) {
+        this.dragAndDrop.makeWidgetDraggable(widgetElement);
+      }
+    });
   }
   
   showModal(modal) {
