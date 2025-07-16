@@ -1,0 +1,231 @@
+/* Popup Styles */
+
+body {
+  margin: 0;
+  width: 320px;
+  min-height: 400px;
+}
+
+.popup-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--background);
+}
+
+/* Header */
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--primary);
+}
+
+.logo svg {
+  width: 24px;
+  height: 24px;
+}
+
+.logo h1 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.version {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Content */
+.popup-content {
+  flex: 1;
+  padding: var(--space-md);
+  overflow-y: auto;
+}
+
+/* Quick Stats */
+.quick-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.stat-item {
+  text-align: center;
+  padding: var(--space-md);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: var(--space-xs);
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+/* Quick Actions */
+.quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.action-btn:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.action-btn:hover svg {
+  color: white;
+}
+
+.action-btn svg {
+  width: 20px;
+  height: 20px;
+  color: var(--muted);
+  transition: color var(--transition-base);
+}
+
+/* Quick Note Area */
+.quick-note-area {
+  margin-bottom: var(--space-lg);
+  animation: fadeIn var(--transition-base) ease-out;
+}
+
+#quickNoteInput {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: var(--space-sm);
+}
+
+.note-actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+}
+
+.btn-sm {
+  padding: var(--space-xs) var(--space-md);
+  font-size: 13px;
+}
+
+/* Storage Info */
+.storage-info {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
+
+.storage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-sm);
+  font-size: 13px;
+}
+
+.storage-header span:first-child {
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+.storage-header span:last-child {
+  color: var(--muted);
+}
+
+.storage-bar {
+  height: 8px;
+  background: var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  position: relative;
+}
+
+.storage-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: var(--radius-sm);
+  transition: width var(--transition-slow) ease-out;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+/* Footer */
+.popup-footer {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: var(--space-md);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.popup-footer a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 13px;
+  transition: color var(--transition-base);
+}
+
+.popup-footer a:hover {
+  color: var(--primary);
+}
+
+/* Scrollbar */
+.popup-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.popup-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.popup-content::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.popup-content::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}

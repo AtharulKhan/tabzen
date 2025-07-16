@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TabZen</title>
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="popup-header">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="9" y1="9" x2="15" y2="9"></line>
+          <line x1="9" y1="15" x2="15" y2="15"></line>
+        </svg>
+        <h1>TabZen</h1>
+      </div>
+      <span class="version">v1.0.0</span>
+    </header>
+    
+    <main class="popup-content">
+      <div class="quick-stats">
+        <div class="stat-item">
+          <div class="stat-value" id="widgetCount">0</div>
+          <div class="stat-label">Widgets</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="todoCount">0</div>
+          <div class="stat-label">Tasks</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="linkCount">0</div>
+          <div class="stat-label">Links</div>
+        </div>
+      </div>
+      
+      <div class="quick-actions">
+        <button class="action-btn" id="openNewTab">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+            <polyline points="13 2 13 9 20 9"></polyline>
+          </svg>
+          Open New Tab
+        </button>
+        
+        <button class="action-btn" id="quickNote">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 20h9"></path>
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+          </svg>
+          Quick Note
+        </button>
+      </div>
+      
+      <div class="quick-note-area" id="quickNoteArea" style="display: none;">
+        <textarea id="quickNoteInput" placeholder="Type your note here..." rows="3"></textarea>
+        <div class="note-actions">
+          <button class="btn btn-primary btn-sm" id="saveNote">Save</button>
+          <button class="btn btn-secondary btn-sm" id="cancelNote">Cancel</button>
+        </div>
+      </div>
+      
+      <div class="storage-info">
+        <div class="storage-header">
+          <span>Storage Usage</span>
+          <span id="storagePercent">0%</span>
+        </div>
+        <div class="storage-bar">
+          <div class="storage-fill" id="storageFill"></div>
+        </div>
+      </div>
+    </main>
+    
+    <footer class="popup-footer">
+      <a href="#" id="openSettings">Settings</a>
+      <a href="https://github.com/yourusername/tabzen" target="_blank">GitHub</a>
+      <a href="#" id="rateExtension">Rate</a>
+    </footer>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

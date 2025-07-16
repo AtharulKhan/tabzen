@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "TabZen",
+  "version": "1.0.0",
+  "description": "Transform your new tab into a beautiful, customizable productivity dashboard",
+  "author": "TabZen Team",
+  
+  "permissions": [
+    "storage",
+    "geolocation"
+  ],
+  
+  "chrome_url_overrides": {
+    "newtab": "src/newtab/newtab.html"
+  },
+  
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "assets/icons/icon-16.png",
+      "32": "assets/icons/icon-32.png",
+      "48": "assets/icons/icon-48.png",
+      "128": "assets/icons/icon-128.png"
+    }
+  },
+  
+  "icons": {
+    "16": "assets/icons/icon-16.png",
+    "32": "assets/icons/icon-32.png",
+    "48": "assets/icons/icon-48.png",
+    "128": "assets/icons/icon-128.png"
+  },
+  
+  "background": {
+    "service_worker": "src/background/service-worker.js"
+  },
+  
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'"
+  },
+  
+  "host_permissions": [
+    "https://*/*"
+  ]
+}

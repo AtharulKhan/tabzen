@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Generate TabZen Icons</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f0f0f0;
+    }
+    .container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .icon-preview {
+      display: inline-block;
+      margin: 10px;
+      text-align: center;
+    }
+    canvas {
+      border: 1px solid #ddd;
+      display: block;
+      margin: 10px 0;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: #2563eb;
+    }
+    .instructions {
+      background: #f3f4f6;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>TabZen Icon Generator</h1>
+    
+    <div class="instructions">
+      <h3>Instructions:</h3>
+      <ol>
+        <li>Open this file in Chrome</li>
+        <li>Click "Generate Icons" to create all icon sizes</li>
+        <li>Right-click each canvas and save as PNG with the indicated filename</li>
+        <li>Save to the same directory as this file</li>
+      </ol>
+    </div>
+    
+    <button onclick="generateIcons()">Generate Icons</button>
+    
+    <div id="icons"></div>
+  </div>
+
+  <script>
+    const sizes = [16, 32, 48, 128];
+    
+    function generateIcons() {
+      const container = document.getElementById('icons');
+      container.innerHTML = '';
+      
+      sizes.forEach(size => {
+        const div = document.createElement('div');
+        div.className = 'icon-preview';
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        
+        const ctx = canvas.getContext('2d');
+        
+        // Background
+        const gradient = ctx.createLinearGradient(0, 0, size, size);
+        gradient.addColorStop(0, '#3b82f6');
+        gradient.addColorStop(1, '#8b5cf6');
+        
+        // Rounded rectangle background
+        const radius = size * 0.1875; // 24/128 ratio
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.moveTo(radius, 0);
+        ctx.lineTo(size - radius, 0);
+        ctx.quadraticCurveTo(size, 0, size, radius);
+        ctx.lineTo(size, size - radius);
+        ctx.quadraticCurveTo(size, size, size - radius, size);
+        ctx.lineTo(radius, size);
+        ctx.quadraticCurveTo(0, size, 0, size - radius);
+        ctx.lineTo(0, radius);
+        ctx.quadraticCurveTo(0, 0, radius, 0);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Grid pattern (for larger sizes)
+        if (size >= 48) {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+          const gridSize = size * 0.3125; // 40/128 ratio
+          const gridMargin = size * 0.15625; // 20/128 ratio
+          const gridRadius = size * 0.0625; // 8/128 ratio
+          
+          // Top-left
+          roundRect(ctx, gridMargin, gridMargin, gridSize, gridSize, gridRadius);
+          ctx.fill();
+          
+          // Top-right
+          roundRect(ctx, size - gridMargin - gridSize, gridMargin, gridSize, gridSize, gridRadius);
+          ctx.fill();
+          
+          // Bottom-left
+          roundRect(ctx, gridMargin, size - gridMargin - gridSize, gridSize, gridSize, gridRadius);
+          ctx.fill();
+          
+          // Bottom-right
+          roundRect(ctx, size - gridMargin - gridSize, size - gridMargin - gridSize, gridSize, gridSize, gridRadius);
+          ctx.fill();
+        }
+        
+        // Center tab icon
+        ctx.save();
+        ctx.translate(size / 2, size / 2);
+        
+        const tabWidth = size * 0.46875; // 60/128 ratio
+        const tabHeight = size * 0.3125; // 40/128 ratio
+        const tabRadius = size * 0.0625; // 8/128 ratio
+        
+        // White tab background
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        roundRect(ctx, -tabWidth/2, -tabHeight/2, tabWidth, tabHeight, tabRadius);
+        ctx.fill();
+        
+        // Tab content lines
+        ctx.fillStyle = gradient;
+        
+        // Title bar
+        roundRect(ctx, -tabWidth/2 + tabWidth*0.1, -tabHeight/2 + tabHeight*0.15, tabWidth*0.8, tabHeight*0.2, tabRadius/2);
+        ctx.fill();
+        
+        // Content line 1
+        ctx.fillStyle = 'rgba(139, 92, 246, 0.6)';
+        roundRect(ctx, -tabWidth/2 + tabWidth*0.1, -tabHeight/2 + tabHeight*0.45, tabWidth*0.5, tabHeight*0.1, tabRadius/4);
+        ctx.fill();
+        
+        // Content line 2
+        ctx.fillStyle = 'rgba(139, 92, 246, 0.4)';
+        roundRect(ctx, -tabWidth/2 + tabWidth*0.1, -tabHeight/2 + tabHeight*0.65, tabWidth*0.67, tabHeight*0.1, tabRadius/4);
+        ctx.fill();
+        
+        ctx.restore();
+        
+        const label = document.createElement('div');
+        label.textContent = `icon-${size}.png`;
+        
+        div.appendChild(canvas);
+        div.appendChild(label);
+        container.appendChild(div);
+      });
+    }
+    
+    function roundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+  </script>
+</body>
+</html>
