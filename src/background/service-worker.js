@@ -160,43 +160,52 @@ async function cleanupOldData() {
 
 // Context menu for quick actions
 chrome.runtime.onInstalled.addListener(() => {
-  // Create context menu for adding links to Quick Links
-  chrome.contextMenus.create({
-    id: 'addToQuickLinks',
-    title: 'Add to TabZen Quick Links',
-    contexts: ['link', 'page']
-  });
-  
-  // Create context menu for adding selected text as note
-  chrome.contextMenus.create({
-    id: 'addToNotes',
-    title: 'Add to TabZen Notes',
-    contexts: ['selection']
-  });
+  // Only create context menus if the API is available and permission is granted
+  if (chrome.contextMenus) {
+    try {
+      // Create context menu for adding links to Quick Links
+      chrome.contextMenus.create({
+        id: 'addToQuickLinks',
+        title: 'Add to TabZen Quick Links',
+        contexts: ['link', 'page']
+      });
+      
+      // Create context menu for adding selected text as note
+      chrome.contextMenus.create({
+        id: 'addToNotes',
+        title: 'Add to TabZen Notes',
+        contexts: ['selection']
+      });
+    } catch (error) {
+      console.log('Context menus not available:', error);
+    }
+  }
 });
 
 // Handle context menu clicks
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId === 'addToQuickLinks') {
-    const url = info.linkUrl || info.pageUrl;
-    const title = info.selectionText || tab.title;
-    
-    // Add to quick links
-    await addToQuickLinks(url, title);
-    
-    // Show notification
-    showNotification('Link Added', `"${title}" has been added to your Quick Links`);
-    
-  } else if (info.menuItemId === 'addToNotes') {
-    const text = info.selectionText;
-    
-    // Add to notes
-    await addToNotes(text);
-    
-    // Show notification
-    showNotification('Note Added', 'Text has been added to your Notes');
-  }
-});
+if (chrome.contextMenus) {
+  chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    if (info.menuItemId === 'addToQuickLinks') {
+      const url = info.linkUrl || info.pageUrl;
+      const title = info.selectionText || tab.title;
+      
+      // Add to quick links
+      await addToQuickLinks(url, title);
+      
+      // Show notification
+      showNotification('Link Added', `"${title}" has been added to your Quick Links`);
+      
+    } else if (info.menuItemId === 'addToNotes') {
+      const text = info.selectionText;
+      
+      // Add to notes
+      await addToNotes(text);
+      
+      // Show notification
+      showNotification('Note Added', 'Text has been added to your Notes');
+    }
+  });
+}
 
 // Add link to Quick Links widget
 async function addToQuickLinks(url, title) {

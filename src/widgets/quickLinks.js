@@ -10,6 +10,9 @@ export class QuickLinksWidget {
     
     this.links = [];
     this.isEditing = false;
+    this.isReordering = false;
+    this.draggedElement = null;
+    this.draggedIndex = null;
   }
   
   async init() {
@@ -29,16 +32,86 @@ export class QuickLinksWidget {
   }
   
   render() {
+    // Create container
+    const container = document.createElement('div');
+    container.className = 'quick-links-container';
+    
+    // Create header with edit and reorder buttons
+    const header = document.createElement('div');
+    header.className = 'quick-links-header';
+    header.innerHTML = `
+      <button class="reorder-mode-btn" title="Toggle reorder mode">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="7 10 12 5 17 10"></polyline>
+          <polyline points="7 14 12 19 17 14"></polyline>
+        </svg>
+      </button>
+      <button class="edit-mode-btn" title="Toggle delete mode">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          <line x1="10" y1="11" x2="10" y2="17"></line>
+          <line x1="14" y1="11" x2="14" y2="17"></line>
+        </svg>
+      </button>
+    `;
+    
+    // Create grid
     const grid = document.createElement('div');
     grid.className = 'quick-links-grid';
-    grid.innerHTML = `
-      <style>
-        .quick-links-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-          gap: 12px;
-          padding: 4px;
-        }
+    
+    // Add styles
+    const styles = document.createElement('style');
+    styles.textContent = `
+      .quick-links-container {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      .quick-links-header {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-bottom: 8px;
+        height: 24px;
+      }
+      
+      .edit-mode-btn,
+      .reorder-mode-btn {
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+      }
+      
+      .edit-mode-btn:hover,
+      .reorder-mode-btn:hover {
+        background: var(--surface-hover);
+        color: var(--foreground);
+      }
+      
+      .edit-mode-btn.active,
+      .reorder-mode-btn.active {
+        background: var(--primary);
+        color: white;
+      }
+      
+      .quick-links-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+        gap: 12px;
+        padding: 4px;
+        flex: 1;
+        overflow-y: auto;
+      }
         
         .quick-link {
           display: flex;
@@ -56,6 +129,26 @@ export class QuickLinksWidget {
         .quick-link:hover {
           background: var(--surface-hover);
           transform: translateY(-2px);
+        }
+        
+        .quick-link.dragging {
+          opacity: 0.5;
+          transform: scale(0.9);
+          cursor: grabbing;
+        }
+        
+        .quick-link.drag-over {
+          transform: scale(1.1);
+          background: var(--primary);
+          opacity: 0.3;
+        }
+        
+        .quick-links-grid.editing .quick-link {
+          cursor: grab;
+        }
+        
+        .quick-links-grid.editing .quick-link:active {
+          cursor: grabbing;
         }
         
         .quick-link-icon {
@@ -124,9 +217,15 @@ export class QuickLinksWidget {
           cursor: pointer;
           font-size: 12px;
           box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          transition: transform 0.2s ease;
+          z-index: 10;
         }
         
-        .quick-links-grid.editing .quick-link:hover .quick-link-remove {
+        .quick-link-remove:hover {
+          transform: scale(1.2);
+        }
+        
+        .quick-links-grid.editing .quick-link .quick-link-remove {
           display: flex;
         }
         
@@ -169,8 +268,7 @@ export class QuickLinksWidget {
           background: rgba(0,0,0,0.5);
           z-index: 999;
         }
-      </style>
-    `;
+      `;
     
     // Render links
     this.links.forEach((link, index) => {
@@ -190,12 +288,34 @@ export class QuickLinksWidget {
     `;
     grid.appendChild(addBtn);
     
-    this.container.innerHTML = '';
-    this.container.appendChild(grid);
+    // Assemble container
+    container.appendChild(styles);
+    container.appendChild(header);
+    container.appendChild(grid);
     
-    // Store reference
+    // Update widget content
+    this.container.innerHTML = '';
+    this.container.appendChild(container);
+    
+    // Store references
     this.grid = grid;
     this.addBtn = addBtn;
+    this.editBtn = header.querySelector('.edit-mode-btn');
+    this.reorderBtn = header.querySelector('.reorder-mode-btn');
+    
+    // Update button states
+    if (this.isEditing) {
+      this.editBtn.classList.add('active');
+      grid.classList.add('editing');
+    }
+    if (this.isReordering) {
+      this.reorderBtn.classList.add('active');
+      // Make links draggable
+      const links = grid.querySelectorAll('.quick-link');
+      links.forEach(link => {
+        link.draggable = true;
+      });
+    }
   }
   
   createLinkElement(link, index) {
@@ -203,6 +323,7 @@ export class QuickLinksWidget {
     linkEl.href = link.url;
     linkEl.className = 'quick-link';
     linkEl.dataset.index = index;
+    linkEl.draggable = this.isReordering;
     
     const iconDiv = document.createElement('div');
     iconDiv.className = 'quick-link-icon';
@@ -261,6 +382,16 @@ export class QuickLinksWidget {
   }
   
   attachListeners() {
+    // Edit mode button
+    this.editBtn.addEventListener('click', () => {
+      this.toggleEditMode();
+    });
+    
+    // Reorder mode button
+    this.reorderBtn.addEventListener('click', () => {
+      this.toggleReorderMode();
+    });
+    
     // Add link button
     this.addBtn.addEventListener('click', () => {
       this.showAddLinkModal();
@@ -275,6 +406,11 @@ export class QuickLinksWidget {
         const index = parseInt(linkEl.dataset.index);
         this.removeLink(index);
       }
+      
+      // Prevent navigation in edit or reorder mode
+      if ((this.isEditing || this.isReordering) && e.target.closest('.quick-link')) {
+        e.preventDefault();
+      }
     });
     
     // Enable editing mode with right click
@@ -282,6 +418,14 @@ export class QuickLinksWidget {
       e.preventDefault();
       this.toggleEditMode();
     });
+    
+    // Drag and drop events
+    this.grid.addEventListener('dragstart', this.handleDragStart.bind(this));
+    this.grid.addEventListener('dragend', this.handleDragEnd.bind(this));
+    this.grid.addEventListener('dragover', this.handleDragOver.bind(this));
+    this.grid.addEventListener('drop', this.handleDrop.bind(this));
+    this.grid.addEventListener('dragenter', this.handleDragEnter.bind(this));
+    this.grid.addEventListener('dragleave', this.handleDragLeave.bind(this));
   }
   
   showAddLinkModal() {
@@ -326,6 +470,7 @@ export class QuickLinksWidget {
       this.links.push(link);
       await this.saveState();
       this.render();
+      this.attachListeners();
       
       // Clean up
       backdrop.remove();
@@ -365,11 +510,128 @@ export class QuickLinksWidget {
     this.links.splice(index, 1);
     await this.saveState();
     this.render();
+    this.attachListeners();
+    
+    // Maintain edit mode
+    if (this.isEditing) {
+      this.grid.classList.add('editing');
+      this.editBtn.classList.add('active');
+    }
   }
   
   toggleEditMode() {
     this.isEditing = !this.isEditing;
     this.grid.classList.toggle('editing', this.isEditing);
+    this.editBtn.classList.toggle('active', this.isEditing);
+    
+    // If entering edit mode, exit reorder mode
+    if (this.isEditing && this.isReordering) {
+      this.toggleReorderMode();
+    }
+  }
+  
+  toggleReorderMode() {
+    this.isReordering = !this.isReordering;
+    this.reorderBtn.classList.toggle('active', this.isReordering);
+    
+    // Update draggable state for all links
+    const links = this.grid.querySelectorAll('.quick-link');
+    links.forEach(link => {
+      link.draggable = this.isReordering;
+    });
+    
+    // If entering reorder mode, exit edit mode
+    if (this.isReordering && this.isEditing) {
+      this.isEditing = false;
+      this.grid.classList.remove('editing');
+      this.editBtn.classList.remove('active');
+    }
+  }
+  
+  // Drag and drop handlers
+  handleDragStart(e) {
+    const linkEl = e.target.closest('.quick-link');
+    if (!linkEl || !this.isReordering) return;
+    
+    this.draggedElement = linkEl;
+    this.draggedIndex = parseInt(linkEl.dataset.index);
+    linkEl.classList.add('dragging');
+    
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', linkEl.innerHTML);
+  }
+  
+  handleDragEnd(e) {
+    if (!this.draggedElement) return;
+    
+    this.draggedElement.classList.remove('dragging');
+    
+    // Clean up all drag-over states
+    this.grid.querySelectorAll('.quick-link').forEach(link => {
+      link.classList.remove('drag-over');
+    });
+    
+    this.draggedElement = null;
+    this.draggedIndex = null;
+  }
+  
+  handleDragOver(e) {
+    if (!this.draggedElement || !this.isReordering) return;
+    
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }
+  
+  handleDragEnter(e) {
+    const linkEl = e.target.closest('.quick-link');
+    if (!linkEl || linkEl === this.draggedElement || !this.isReordering) return;
+    
+    linkEl.classList.add('drag-over');
+  }
+  
+  handleDragLeave(e) {
+    const linkEl = e.target.closest('.quick-link');
+    if (!linkEl) return;
+    
+    // Check if we're actually leaving the element
+    const relatedTarget = e.relatedTarget;
+    if (relatedTarget && linkEl.contains(relatedTarget)) return;
+    
+    linkEl.classList.remove('drag-over');
+  }
+  
+  async handleDrop(e) {
+    const dropTarget = e.target.closest('.quick-link');
+    if (!dropTarget || !this.draggedElement || dropTarget === this.draggedElement || !this.isReordering) return;
+    
+    e.preventDefault();
+    
+    const dropIndex = parseInt(dropTarget.dataset.index);
+    
+    // Reorder the links array
+    const [movedLink] = this.links.splice(this.draggedIndex, 1);
+    
+    // Adjust drop index if dragging from before to after
+    const adjustedDropIndex = this.draggedIndex < dropIndex ? dropIndex - 1 : dropIndex;
+    this.links.splice(adjustedDropIndex, 0, movedLink);
+    
+    // Save and re-render
+    await this.saveState();
+    this.render();
+    this.attachListeners();
+    
+    // Maintain edit mode
+    if (this.isEditing) {
+      this.grid.classList.add('editing');
+      this.editBtn.classList.add('active');
+    }
+    if (this.isReordering) {
+      this.reorderBtn.classList.add('active');
+      const links = this.grid.querySelectorAll('.quick-link');
+      links.forEach(link => {
+        link.draggable = true;
+      });
+    }
   }
   
   openSettings() {
