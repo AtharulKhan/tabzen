@@ -3,9 +3,10 @@
 import { Events } from './eventBus.js';
 
 export class WidgetManager {
-  constructor(storage, eventBus) {
+  constructor(storage, eventBus, spaceManager) {
     this.storage = storage;
     this.eventBus = eventBus;
+    this.spaceManager = spaceManager;
     this.widgets = new Map(); // Widget instances
     this.widgetTypes = new Map(); // Widget constructors
     this.widgetConfigs = new Map(); // Widget configurations
@@ -32,13 +33,14 @@ export class WidgetManager {
     return availableWidgets;
   }
   
-  // Load all widgets
+  // Load all widgets for current space
   async loadWidgets(container) {
-    const widgetsData = await this.storage.getWidgets();
-    const widgetOrder = await this.storage.getWidgetOrder();
+    const widgetsData = await this.spaceManager.getWidgetsForSpace();
+    const widgetOrder = await this.spaceManager.getWidgetOrderForSpace();
     
     // Clear existing widgets
     this.clearWidgets();
+    container.innerHTML = '';
     
     // Load widgets in order
     const orderedIds = widgetOrder.filter(id => widgetsData[id]?.enabled !== false);
@@ -108,10 +110,18 @@ export class WidgetManager {
       widgetElement.appendChild(resizeHandle);
       container.appendChild(widgetElement);
       
-      // Initialize widget
+      // Initialize widget with space-aware storage wrapper
       const widget = new WidgetClass(content, {
         id: widgetId,
-        storage: this.storage,
+        storage: {
+          saveWidget: async (id, data) => {
+            await this.spaceManager.saveWidgetForSpace(id, data);
+          },
+          getWidget: async (id) => {
+            const widgets = await this.spaceManager.getWidgetsForSpace();
+            return widgets[id] || null;
+          }
+        },
         eventBus: this.eventBus,
         savedData
       });
@@ -151,18 +161,18 @@ export class WidgetManager {
     const config = this.widgetConfigs.get(type);
     const defaultSize = config?.defaultSize || '1x1';
     
-    // Save to storage
-    await this.storage.saveWidget(widgetId, {
+    // Save to storage for current space
+    await this.spaceManager.saveWidgetForSpace(widgetId, {
       type,
       enabled: true,
       createdAt: timestamp,
       size: defaultSize
     });
     
-    // Update widget order
-    const order = await this.storage.getWidgetOrder();
+    // Update widget order for current space
+    const order = await this.spaceManager.getWidgetOrderForSpace();
     order.push(widgetId);
-    await this.storage.saveWidgetOrder(order);
+    await this.spaceManager.saveWidgetOrderForSpace(order);
     
     // Create widget
     await this.createWidget(widgetId, type, container);
@@ -184,13 +194,13 @@ export class WidgetManager {
       element.remove();
     }
     
-    // Remove from storage
-    await this.storage.removeWidget(widgetId);
+    // Remove from storage for current space
+    await this.spaceManager.removeWidgetFromSpace(widgetId);
     
-    // Update widget order
-    const order = await this.storage.getWidgetOrder();
+    // Update widget order for current space
+    const order = await this.spaceManager.getWidgetOrderForSpace();
     const newOrder = order.filter(id => id !== widgetId);
-    await this.storage.saveWidgetOrder(newOrder);
+    await this.spaceManager.saveWidgetOrderForSpace(newOrder);
     
     // Remove from memory
     this.widgets.delete(widgetId);
@@ -215,9 +225,9 @@ export class WidgetManager {
     return this.widgets.get(widgetId);
   }
   
-  // Update widget order
+  // Update widget order for current space
   async updateWidgetOrder(newOrder) {
-    await this.storage.saveWidgetOrder(newOrder);
+    await this.spaceManager.saveWidgetOrderForSpace(newOrder);
     this.eventBus.emit(Events.WIDGET_REORDER, { order: newOrder });
   }
 }
