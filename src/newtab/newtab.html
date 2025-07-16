@@ -94,6 +94,54 @@
         <div class="settings-section">
           <h3>Appearance</h3>
           <label class="settings-item">
+            <span>Theme</span>
+            <select id="themeSelect">
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="system">System</option>
+            </select>
+          </label>
+          <label class="settings-item">
+            <span>Background</span>
+            <select id="backgroundType">
+              <option value="gradient">Gradient</option>
+              <option value="solid">Solid Color</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+          <div id="gradientPresets" class="settings-item">
+            <span>Gradient Style</span>
+            <div class="gradient-presets">
+              <button class="gradient-preset active" data-gradient="default" title="Default">
+                <div class="gradient-preview" style="background: radial-gradient(circle at 20% 80%, #3b82f6 0%, transparent 50%), radial-gradient(circle at 80% 20%, #8b5cf6 0%, transparent 50%);"></div>
+              </button>
+              <button class="gradient-preset" data-gradient="sunset" title="Sunset">
+                <div class="gradient-preview" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);"></div>
+              </button>
+              <button class="gradient-preset" data-gradient="ocean" title="Ocean">
+                <div class="gradient-preview" style="background: linear-gradient(135deg, #2e3192 0%, #1bffff 100%);"></div>
+              </button>
+              <button class="gradient-preset" data-gradient="forest" title="Forest">
+                <div class="gradient-preview" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);"></div>
+              </button>
+              <button class="gradient-preset" data-gradient="lavender" title="Lavender">
+                <div class="gradient-preview" style="background: linear-gradient(135deg, #c3cfe2 0%, #c3cfe2 50%, #fbc2eb 100%);"></div>
+              </button>
+              <button class="gradient-preset" data-gradient="peach" title="Peach">
+                <div class="gradient-preview" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);"></div>
+              </button>
+            </div>
+          </div>
+          <div id="solidColorPicker" class="settings-item" style="display: none;">
+            <span>Background Color</span>
+            <input type="color" id="backgroundColor" value="#f3f4f6">
+          </div>
+          <label class="settings-item">
+            <span>Background Opacity</span>
+            <input type="range" id="backgroundOpacity" min="0" max="100" value="5">
+            <span class="range-value">5%</span>
+          </label>
+          <label class="settings-item">
             <span>Grid Columns</span>
             <select id="gridColumns">
               <option value="3">3 columns</option>

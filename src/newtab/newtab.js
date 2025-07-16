@@ -51,7 +51,13 @@ class TabZenApp {
       importDataBtn: document.getElementById('importDataBtn'),
       importFileInput: document.getElementById('importFileInput'),
       searchInput: document.getElementById('searchInput'),
-      searchResults: document.getElementById('searchResults')
+      searchResults: document.getElementById('searchResults'),
+      themeSelect: document.getElementById('themeSelect'),
+      backgroundType: document.getElementById('backgroundType'),
+      gradientPresets: document.getElementById('gradientPresets'),
+      solidColorPicker: document.getElementById('solidColorPicker'),
+      backgroundColor: document.getElementById('backgroundColor'),
+      backgroundOpacity: document.getElementById('backgroundOpacity')
     };
     
     this.init();
@@ -189,7 +195,37 @@ class TabZenApp {
     const settings = await this.storage.getSettings();
     
     // Apply theme
-    this.themeManager.setTheme(settings.theme || 'light');
+    const theme = settings.theme || 'light';
+    this.themeManager.setTheme(theme);
+    if (this.elements.themeSelect) {
+      this.elements.themeSelect.value = theme;
+    }
+    
+    // Apply background settings
+    const backgroundType = settings.backgroundType || 'gradient';
+    const gradientPreset = settings.gradientPreset || 'default';
+    const backgroundColor = settings.backgroundColor || '#f3f4f6';
+    const backgroundOpacity = settings.backgroundOpacity || 5;
+    
+    this.applyBackground(backgroundType, gradientPreset, backgroundColor, backgroundOpacity);
+    
+    // Update UI controls
+    if (this.elements.backgroundType) {
+      this.elements.backgroundType.value = backgroundType;
+      this.elements.backgroundColor.value = backgroundColor;
+      this.elements.backgroundOpacity.value = backgroundOpacity;
+      this.elements.backgroundOpacity.nextElementSibling.textContent = `${backgroundOpacity}%`;
+      
+      // Show/hide appropriate controls
+      this.elements.gradientPresets.style.display = backgroundType === 'gradient' ? 'block' : 'none';
+      this.elements.solidColorPicker.style.display = backgroundType === 'solid' ? 'block' : 'none';
+      
+      // Set active gradient preset
+      const presetButtons = this.elements.gradientPresets.querySelectorAll('.gradient-preset');
+      presetButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.gradient === gradientPreset);
+      });
+    }
     
     // Apply grid settings
     const gridColumns = settings.gridColumns || 4;
@@ -240,6 +276,52 @@ class TabZenApp {
       const value = e.target.value;
       document.documentElement.style.setProperty('--widget-gap', `${value}px`);
       this.storage.updateSettings({ widgetGap: parseInt(value) });
+    });
+    
+    // Theme settings
+    this.elements.themeSelect?.addEventListener('change', async (e) => {
+      const theme = e.target.value;
+      this.themeManager.setTheme(theme);
+      await this.storage.updateSettings({ theme });
+    });
+    
+    // Background settings
+    this.elements.backgroundType?.addEventListener('change', async (e) => {
+      const type = e.target.value;
+      this.elements.gradientPresets.style.display = type === 'gradient' ? 'block' : 'none';
+      this.elements.solidColorPicker.style.display = type === 'solid' ? 'block' : 'none';
+      
+      await this.storage.updateSettings({ backgroundType: type });
+      await this.updateBackgroundFromSettings();
+    });
+    
+    // Gradient preset buttons
+    this.elements.gradientPresets?.querySelectorAll('.gradient-preset').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        // Update active state
+        this.elements.gradientPresets.querySelectorAll('.gradient-preset').forEach(b => {
+          b.classList.remove('active');
+        });
+        btn.classList.add('active');
+        
+        const gradient = btn.dataset.gradient;
+        await this.storage.updateSettings({ gradientPreset: gradient });
+        await this.updateBackgroundFromSettings();
+      });
+    });
+    
+    // Background color picker
+    this.elements.backgroundColor?.addEventListener('input', async (e) => {
+      await this.storage.updateSettings({ backgroundColor: e.target.value });
+      await this.updateBackgroundFromSettings();
+    });
+    
+    // Background opacity slider
+    this.elements.backgroundOpacity?.addEventListener('input', async (e) => {
+      const opacity = e.target.value;
+      e.target.nextElementSibling.textContent = `${opacity}%`;
+      await this.storage.updateSettings({ backgroundOpacity: parseInt(opacity) });
+      await this.updateBackgroundFromSettings();
     });
     
     // Data export/import
@@ -593,6 +675,65 @@ class TabZenApp {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+  
+  async updateBackgroundFromSettings() {
+    const settings = await this.storage.getSettings();
+    const backgroundType = settings.backgroundType || 'gradient';
+    const gradientPreset = settings.gradientPreset || 'default';
+    const backgroundColor = settings.backgroundColor || '#f3f4f6';
+    const backgroundOpacity = settings.backgroundOpacity || 5;
+    
+    this.applyBackground(backgroundType, gradientPreset, backgroundColor, backgroundOpacity);
+  }
+  
+  applyBackground(type, gradientPreset, color, opacity) {
+    const container = document.querySelector('.app-container');
+    const beforeElement = window.getComputedStyle(container, '::before');
+    
+    // Define gradient presets
+    const gradients = {
+      default: 'radial-gradient(circle at 20% 80%, var(--primary) 0%, transparent 50%), radial-gradient(circle at 80% 20%, var(--secondary) 0%, transparent 50%)',
+      sunset: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+      ocean: 'linear-gradient(135deg, #2e3192 0%, #1bffff 100%)',
+      forest: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+      lavender: 'linear-gradient(135deg, #c3cfe2 0%, #c3cfe2 50%, #fbc2eb 100%)',
+      peach: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)'
+    };
+    
+    // Create style element if it doesn't exist
+    let styleEl = document.getElementById('dynamic-background-styles');
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'dynamic-background-styles';
+      document.head.appendChild(styleEl);
+    }
+    
+    let backgroundStyle = '';
+    const opacityValue = opacity / 100;
+    
+    if (type === 'none') {
+      backgroundStyle = 'none';
+    } else if (type === 'solid') {
+      backgroundStyle = color;
+    } else if (type === 'gradient') {
+      backgroundStyle = gradients[gradientPreset] || gradients.default;
+    }
+    
+    styleEl.textContent = `
+      .app-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: ${backgroundStyle};
+        opacity: ${opacityValue};
+        pointer-events: none;
+        z-index: 0;
+      }
+    `;
   }
 }
 

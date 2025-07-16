@@ -221,7 +221,7 @@ export class QuickLinksWidget {
           align-items: center;
           justify-content: center;
           background: white;
-          border-radius: var(--icon-radius, 16px);
+          border-radius: 50%;
           overflow: hidden;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
           transition: all 0.2s ease;
@@ -230,17 +230,14 @@ export class QuickLinksWidget {
         
         .size-small .quick-link-icon {
           --icon-size: 48px;
-          --icon-radius: 12px;
         }
         
         .size-medium .quick-link-icon {
           --icon-size: 64px;
-          --icon-radius: 16px;
         }
         
         .size-large .quick-link-icon {
           --icon-size: 80px;
-          --icon-radius: 20px;
         }
         
         [data-theme="dark"] .quick-link-icon {
@@ -337,7 +334,7 @@ export class QuickLinksWidget {
           align-items: center;
           justify-content: center;
           border: 2px dashed var(--border);
-          border-radius: var(--icon-radius, 16px);
+          border-radius: 50%;
           transition: all 0.2s ease;
         }
         
@@ -553,18 +550,29 @@ export class QuickLinksWidget {
         const linkEl = e.target.closest('.quick-link');
         const index = parseInt(linkEl.dataset.index);
         this.removeLink(index);
+        return;
       }
       
-      // Prevent navigation in edit or reorder mode
-      if ((this.isEditing || this.isReordering) && e.target.closest('.quick-link')) {
+      // Handle link click - open in mini window
+      const linkEl = e.target.closest('.quick-link');
+      if (linkEl && !this.isEditing && !this.isReordering) {
         e.preventDefault();
+        const url = linkEl.href;
+        this.openInMiniWindow(url);
       }
     });
     
-    // Enable editing mode with right click
-    this.container.addEventListener('contextmenu', (e) => {
+    // Right-click context menu
+    this.grid.addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      this.toggleEditMode();
+      
+      const linkEl = e.target.closest('.quick-link');
+      if (linkEl && !this.isEditing && !this.isReordering) {
+        this.showContextMenu(e, linkEl);
+      } else if (!linkEl) {
+        // Right-click on empty space toggles edit mode
+        this.toggleEditMode();
+      }
     });
     
     // Drag and drop events
@@ -801,7 +809,276 @@ export class QuickLinksWidget {
     this.toggleEditMode();
   }
   
+  openInMiniWindow(url) {
+    try {
+      // Calculate window size (60% of screen)
+      const width = Math.round(window.screen.width * 0.6);
+      const height = Math.round(window.screen.height * 0.6);
+      
+      // Center the window
+      const left = Math.round((window.screen.width - width) / 2);
+      const top = Math.round((window.screen.height - height) / 2);
+      
+      // Window features - no address bar
+      const features = `width=${width},height=${height},left=${left},top=${top},toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,resizable=yes`;
+      
+      // Open the window
+      window.open(url, '_blank', features);
+    } catch (error) {
+      console.error('Failed to open mini window:', error);
+      // Fallback to regular tab
+      window.open(url, '_blank');
+    }
+  }
+  
+  showContextMenu(event, linkEl) {
+    // Remove any existing context menu
+    const existingMenu = document.querySelector('.quick-link-context-menu');
+    if (existingMenu) {
+      existingMenu.remove();
+    }
+    
+    const index = parseInt(linkEl.dataset.index);
+    const link = this.links[index];
+    
+    // Create context menu
+    const menu = document.createElement('div');
+    menu.className = 'quick-link-context-menu';
+    menu.innerHTML = `
+      <div class="context-menu-item" data-action="mini-window">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <path d="M9 3v18"></path>
+          <path d="M15 3v18"></path>
+        </svg>
+        Open in mini window
+      </div>
+      <div class="context-menu-item" data-action="new-window">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="14" rx="2" ry="2"></rect>
+          <line x1="3" y1="7" x2="21" y2="7"></line>
+        </svg>
+        Open in new window
+      </div>
+      <div class="context-menu-item" data-action="new-tab">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        Open in new tab
+      </div>
+      <div class="context-menu-divider"></div>
+      <div class="context-menu-item" data-action="edit">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+        </svg>
+        Edit link
+      </div>
+      <div class="context-menu-item" data-action="delete">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+        Delete
+      </div>
+    `;
+    
+    // Add styles for context menu
+    if (!document.querySelector('#quick-link-context-menu-styles')) {
+      const styles = document.createElement('style');
+      styles.id = 'quick-link-context-menu-styles';
+      styles.textContent = `
+        .quick-link-context-menu {
+          position: fixed;
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          padding: 4px;
+          z-index: 1000;
+          min-width: 200px;
+        }
+        
+        .context-menu-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 8px 12px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 13px;
+          color: var(--foreground);
+          transition: all 0.2s ease;
+        }
+        
+        .context-menu-item:hover {
+          background: var(--surface-hover);
+        }
+        
+        .context-menu-item svg {
+          flex-shrink: 0;
+          opacity: 0.7;
+        }
+        
+        .context-menu-divider {
+          height: 1px;
+          background: var(--border);
+          margin: 4px 8px;
+        }
+      `;
+      document.head.appendChild(styles);
+    }
+    
+    // Position the menu
+    document.body.appendChild(menu);
+    
+    const rect = menu.getBoundingClientRect();
+    let x = event.clientX;
+    let y = event.clientY;
+    
+    // Adjust position if menu would go off-screen
+    if (x + rect.width > window.innerWidth) {
+      x = window.innerWidth - rect.width - 10;
+    }
+    if (y + rect.height > window.innerHeight) {
+      y = window.innerHeight - rect.height - 10;
+    }
+    
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+    
+    // Handle menu item clicks
+    menu.addEventListener('click', (e) => {
+      const item = e.target.closest('.context-menu-item');
+      if (!item) return;
+      
+      const action = item.dataset.action;
+      const url = link.url;
+      
+      switch (action) {
+        case 'mini-window':
+          this.openInMiniWindow(url);
+          break;
+        case 'new-window':
+          window.open(url, '_blank');
+          break;
+        case 'new-tab':
+          chrome.tabs.create({ url });
+          break;
+        case 'edit':
+          this.showEditLinkModal(index);
+          break;
+        case 'delete':
+          if (confirm('Delete this link?')) {
+            this.removeLink(index);
+          }
+          break;
+      }
+      
+      menu.remove();
+    });
+    
+    // Close menu when clicking outside
+    const closeMenu = (e) => {
+      if (!menu.contains(e.target)) {
+        menu.remove();
+        document.removeEventListener('click', closeMenu);
+      }
+    };
+    
+    // Delay to prevent immediate closing
+    setTimeout(() => {
+      document.addEventListener('click', closeMenu);
+    }, 0);
+  }
+  
+  showEditLinkModal(index) {
+    const link = this.links[index];
+    
+    // Create backdrop
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    
+    // Create modal
+    const modal = document.createElement('div');
+    modal.className = 'quick-link-modal';
+    modal.innerHTML = `
+      <h3>Edit Link</h3>
+      <input type="url" id="linkUrl" placeholder="URL (e.g., https://example.com)" value="${link.url}" required>
+      <input type="text" id="linkTitle" placeholder="Title (optional)" value="${link.title || ''}">
+      <div class="quick-link-modal-actions">
+        <button class="btn btn-secondary" id="cancelEdit">Cancel</button>
+        <button class="btn btn-primary" id="confirmEdit">Save</button>
+      </div>
+    `;
+    
+    document.body.appendChild(backdrop);
+    document.body.appendChild(modal);
+    
+    // Focus URL input
+    const urlInput = modal.querySelector('#linkUrl');
+    const titleInput = modal.querySelector('#linkTitle');
+    urlInput.focus();
+    urlInput.select();
+    
+    // Handle form submission
+    const handleEdit = async () => {
+      const url = urlInput.value.trim();
+      if (!url) return;
+      
+      // Add https:// if no protocol
+      const finalUrl = url.match(/^https?:\/\//) ? url : `https://${url}`;
+      
+      this.links[index] = {
+        url: finalUrl,
+        title: titleInput.value.trim() || this.getHostname(finalUrl)
+      };
+      
+      await this.saveState();
+      this.render();
+      this.attachListeners();
+      
+      // Clean up
+      backdrop.remove();
+      modal.remove();
+    };
+    
+    // Event listeners
+    modal.querySelector('#confirmEdit').addEventListener('click', handleEdit);
+    modal.querySelector('#cancelEdit').addEventListener('click', () => {
+      backdrop.remove();
+      modal.remove();
+    });
+    
+    // Enter key to submit
+    urlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleEdit();
+      }
+    });
+    
+    titleInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleEdit();
+      }
+    });
+    
+    // Click backdrop to close
+    backdrop.addEventListener('click', () => {
+      backdrop.remove();
+      modal.remove();
+    });
+  }
+  
   destroy() {
-    // Clean up if needed
+    // Clean up context menu if exists
+    const menu = document.querySelector('.quick-link-context-menu');
+    if (menu) {
+      menu.remove();
+    }
   }
 }
