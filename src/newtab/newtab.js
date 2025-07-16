@@ -5,6 +5,7 @@ import { EventBus, Events } from '../utils/eventBus.js';
 import { WidgetManager } from '../utils/widgetManager.js';
 import { ThemeManager } from '../utils/theme.js';
 import { DragAndDrop } from '../utils/dragAndDrop.js';
+import { BookmarksManager } from '../utils/bookmarks.js';
 
 // Import widgets
 import { QuickLinksWidget } from '../widgets/quickLinks.js';
@@ -19,7 +20,12 @@ class TabZenApp {
     this.eventBus = new EventBus();
     this.themeManager = new ThemeManager();
     this.widgetManager = new WidgetManager(this.storage, this.eventBus);
+    this.bookmarksManager = new BookmarksManager();
     this.dragAndDrop = null;
+    
+    // Search state
+    this.searchTimeout = null;
+    this.selectedResultIndex = -1;
     
     this.elements = {
       greeting: document.getElementById('greeting'),
@@ -37,7 +43,9 @@ class TabZenApp {
       widgetGap: document.getElementById('widgetGap'),
       exportDataBtn: document.getElementById('exportDataBtn'),
       importDataBtn: document.getElementById('importDataBtn'),
-      importFileInput: document.getElementById('importFileInput')
+      importFileInput: document.getElementById('importFileInput'),
+      searchInput: document.getElementById('searchInput'),
+      searchResults: document.getElementById('searchResults')
     };
     
     this.init();
@@ -56,6 +64,9 @@ class TabZenApp {
     
     // Set up event listeners
     this.setupEventListeners();
+    
+    // Initialize search
+    this.initSearch();
     
     // Load widgets
     await this.widgetManager.loadWidgets(this.elements.widgetGrid);
@@ -202,6 +213,7 @@ class TabZenApp {
       if (e.key === 'Escape') {
         this.hideModal(this.elements.settingsModal);
         this.hideModal(this.elements.widgetGalleryModal);
+        this.hideSearchResults();
       }
     });
   }
@@ -320,6 +332,150 @@ class TabZenApp {
       console.error('Import failed:', error);
       alert('Failed to import data. Please check the file format.');
     }
+  }
+  
+  // Search functionality
+  initSearch() {
+    // Focus on search input
+    this.elements.searchInput.focus();
+    
+    // Search input handler
+    this.elements.searchInput.addEventListener('input', (e) => {
+      this.handleSearch(e.target.value);
+    });
+    
+    // Search keyboard navigation
+    this.elements.searchInput.addEventListener('keydown', (e) => {
+      this.handleSearchKeydown(e);
+    });
+    
+    // Click outside to close results
+    document.addEventListener('click', (e) => {
+      if (!this.elements.searchInput.contains(e.target) && 
+          !this.elements.searchResults.contains(e.target)) {
+        this.hideSearchResults();
+      }
+    });
+  }
+  
+  handleSearch(query) {
+    // Clear previous timeout
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
+    }
+    
+    // Reset selected index
+    this.selectedResultIndex = -1;
+    
+    if (!query.trim()) {
+      this.hideSearchResults();
+      return;
+    }
+    
+    // Debounce search
+    this.searchTimeout = setTimeout(async () => {
+      const results = await this.bookmarksManager.searchBookmarks(query);
+      this.displaySearchResults(results, query);
+    }, 150);
+  }
+  
+  displaySearchResults(results, query) {
+    if (results.length === 0) {
+      this.elements.searchResults.innerHTML = `
+        <div class="search-no-results">
+          No bookmarks found for "${query}"
+        </div>
+      `;
+    } else {
+      this.elements.searchResults.innerHTML = results
+        .map((bookmark, index) => `
+          <div class="search-result-item" data-index="${index}" data-url="${bookmark.url}">
+            <img class="search-result-icon" src="${this.bookmarksManager.getFaviconUrl(bookmark.url)}" alt="">
+            <div class="search-result-content">
+              <div class="search-result-title">${this.escapeHtml(bookmark.title)}</div>
+              <div class="search-result-url">${this.escapeHtml(bookmark.url)}</div>
+            </div>
+          </div>
+        `)
+        .join('');
+      
+      // Add click handlers
+      this.elements.searchResults.querySelectorAll('.search-result-item').forEach(item => {
+        item.addEventListener('click', () => {
+          window.location.href = item.dataset.url;
+        });
+        
+        item.addEventListener('mouseenter', () => {
+          this.selectSearchResult(parseInt(item.dataset.index));
+        });
+      });
+    }
+    
+    this.elements.searchResults.classList.add('active');
+  }
+  
+  handleSearchKeydown(e) {
+    const results = this.elements.searchResults.querySelectorAll('.search-result-item');
+    
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        if (results.length > 0) {
+          this.selectSearchResult(Math.min(this.selectedResultIndex + 1, results.length - 1));
+        }
+        break;
+        
+      case 'ArrowUp':
+        e.preventDefault();
+        if (results.length > 0) {
+          this.selectSearchResult(Math.max(this.selectedResultIndex - 1, -1));
+        }
+        break;
+        
+      case 'Enter':
+        e.preventDefault();
+        if (this.selectedResultIndex >= 0 && results[this.selectedResultIndex]) {
+          window.location.href = results[this.selectedResultIndex].dataset.url;
+        } else if (e.target.value.trim()) {
+          // Search on Google if no bookmark is selected
+          const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(e.target.value)}`;
+          window.location.href = searchUrl;
+        }
+        break;
+        
+      case 'Escape':
+        e.preventDefault();
+        this.hideSearchResults();
+        this.elements.searchInput.blur();
+        break;
+    }
+  }
+  
+  selectSearchResult(index) {
+    const results = this.elements.searchResults.querySelectorAll('.search-result-item');
+    
+    // Remove previous selection
+    results.forEach(result => result.classList.remove('selected'));
+    
+    // Update selected index
+    this.selectedResultIndex = index;
+    
+    // Add new selection
+    if (index >= 0 && results[index]) {
+      results[index].classList.add('selected');
+      results[index].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }
+  
+  hideSearchResults() {
+    this.elements.searchResults.classList.remove('active');
+    this.selectedResultIndex = -1;
+  }
+  
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 }
 
