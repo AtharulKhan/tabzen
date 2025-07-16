@@ -505,11 +505,13 @@ class TabZenApp {
     this.widgetResize = new WidgetResize(this.elements.widgetGrid, {
       gridColumns: gridColumns,
       onResize: async (widgetId, newSize) => {
-        // Save the new size
-        const widgetData = await this.storage.getWidget(widgetId);
-        if (widgetData) {
-          widgetData.size = newSize;
-          await this.storage.saveWidget(widgetId, widgetData);
+        // Save the new size to the current space
+        const widgetData = await this.spaceManager.getWidgetsForSpace();
+        if (widgetData[widgetId]) {
+          await this.spaceManager.saveWidgetForSpace(widgetId, {
+            ...widgetData[widgetId],
+            size: newSize
+          });
         }
       }
     });
