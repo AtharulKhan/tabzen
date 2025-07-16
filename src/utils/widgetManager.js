@@ -147,11 +147,16 @@ export class WidgetManager {
     const random = Math.random().toString(36).substr(2, 5);
     const widgetId = `${type}-${timestamp}-${random}`;
     
+    // Get widget config for default size
+    const config = this.widgetConfigs.get(type);
+    const defaultSize = config?.defaultSize || '1x1';
+    
     // Save to storage
     await this.storage.saveWidget(widgetId, {
       type,
       enabled: true,
-      createdAt: timestamp
+      createdAt: timestamp,
+      size: defaultSize
     });
     
     // Update widget order

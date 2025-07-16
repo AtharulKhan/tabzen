@@ -80,6 +80,12 @@ export class StorageManager {
     return await this.get('widgets', {});
   }
   
+  // Get single widget data
+  async getWidget(widgetId) {
+    const widgets = await this.getWidgets();
+    return widgets[widgetId] || null;
+  }
+  
   // Save widget data
   async saveWidget(widgetId, data) {
     const widgets = await this.getWidgets();
