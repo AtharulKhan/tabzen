@@ -57,7 +57,34 @@ class TabZenApp {
       exportDataBtn: document.getElementById('exportDataBtn'),
       importDataBtn: document.getElementById('importDataBtn'),
       importFileInput: document.getElementById('importFileInput'),
+      // Template elements
+      saveTemplateBtn: document.getElementById('saveTemplateBtn'),
+      manageTemplatesBtn: document.getElementById('manageTemplatesBtn'),
+      templateListContainer: document.getElementById('templateListContainer'),
+      dashboardTemplateList: document.getElementById('dashboardTemplateList'),
+      templateSaveModal: document.getElementById('templateSaveModal'),
+      closeTemplateSaveBtn: document.getElementById('closeTemplateSaveBtn'),
+      templateNameInput: document.getElementById('templateNameInput'),
+      templateDescriptionInput: document.getElementById('templateDescriptionInput'),
+      includeWidgetData: document.getElementById('includeWidgetData'),
+      cancelTemplateSaveBtn: document.getElementById('cancelTemplateSaveBtn'),
+      confirmTemplateSaveBtn: document.getElementById('confirmTemplateSaveBtn'),
+      templateApplyModal: document.getElementById('templateApplyModal'),
+      closeTemplateApplyBtn: document.getElementById('closeTemplateApplyBtn'),
+      templateApplyTitle: document.getElementById('templateApplyTitle'),
+      cancelTemplateApplyBtn: document.getElementById('cancelTemplateApplyBtn'),
       searchInput: document.getElementById('searchInput'),
+      // Todo Template elements
+      createTodoTemplateBtn: document.getElementById('createTodoTemplateBtn'),
+      manageTodoTemplatesBtn: document.getElementById('manageTodoTemplatesBtn'),
+      todoTemplateListContainer: document.getElementById('todoTemplateListContainer'),
+      todoTemplateList: document.getElementById('todoTemplateList'),
+      todoTemplateModal: document.getElementById('todoTemplateModal'),
+      closeTodoTemplateBtn: document.getElementById('closeTodoTemplateBtn'),
+      todoTemplateNameInput: document.getElementById('todoTemplateNameInput'),
+      todoTemplateTasksInput: document.getElementById('todoTemplateTasksInput'),
+      cancelTodoTemplateBtn: document.getElementById('cancelTodoTemplateBtn'),
+      saveTodoTemplateBtn: document.getElementById('saveTodoTemplateBtn'),
       searchResults: document.getElementById('searchResults'),
       searchHelpBtn: document.getElementById('searchHelpBtn'),
       searchHelp: document.getElementById('searchHelp'),
@@ -417,6 +444,78 @@ class TabZenApp {
     });
     this.elements.importFileInput.addEventListener('change', (e) => this.importData(e));
     
+    // Template management
+    this.elements.saveTemplateBtn?.addEventListener('click', () => {
+      this.showModal(this.elements.templateSaveModal);
+      this.elements.templateNameInput.value = '';
+      this.elements.templateDescriptionInput.value = '';
+      this.elements.includeWidgetData.checked = true;
+      this.elements.templateNameInput.focus();
+    });
+    
+    this.elements.manageTemplatesBtn?.addEventListener('click', () => {
+      this.toggleTemplateList();
+    });
+    
+    this.elements.closeTemplateSaveBtn?.addEventListener('click', () => {
+      this.hideModal(this.elements.templateSaveModal);
+    });
+    
+    this.elements.cancelTemplateSaveBtn?.addEventListener('click', () => {
+      this.hideModal(this.elements.templateSaveModal);
+    });
+    
+    this.elements.confirmTemplateSaveBtn?.addEventListener('click', () => {
+      this.saveCurrentAsTemplate();
+    });
+    
+    this.elements.closeTemplateApplyBtn?.addEventListener('click', () => {
+      this.hideModal(this.elements.templateApplyModal);
+    });
+    
+    this.elements.cancelTemplateApplyBtn?.addEventListener('click', () => {
+      this.hideModal(this.elements.templateApplyModal);
+    });
+    
+    // Todo Template event listeners
+    this.elements.createTodoTemplateBtn?.addEventListener('click', () => {
+      this.showCreateTodoTemplateModal();
+    });
+    
+    this.elements.manageTodoTemplatesBtn?.addEventListener('click', () => {
+      this.toggleTodoTemplateList();
+    });
+    
+    this.elements.closeTodoTemplateBtn?.addEventListener('click', () => {
+      this.hideModal(this.elements.todoTemplateModal);
+    });
+    
+    this.elements.cancelTodoTemplateBtn?.addEventListener('click', () => {
+      this.hideModal(this.elements.todoTemplateModal);
+    });
+    
+    this.elements.saveTodoTemplateBtn?.addEventListener('click', () => {
+      this.saveTodoTemplate();
+    });
+    
+    // Template name input - save on Enter
+    this.elements.templateNameInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.value.trim()) {
+        e.preventDefault();
+        this.saveCurrentAsTemplate();
+      }
+    });
+    
+    // Template apply options
+    this.elements.templateApplyModal?.addEventListener('click', (e) => {
+      const option = e.target.closest('.apply-option');
+      if (option && this.selectedTemplateId) {
+        const mode = option.dataset.mode;
+        this.applyTemplate(this.selectedTemplateId, mode);
+        this.hideModal(this.elements.templateApplyModal);
+      }
+    });
+    
     // Close modals on background click
     this.elements.settingsModal.addEventListener('click', (e) => {
       if (e.target === this.elements.settingsModal) {
@@ -430,11 +529,25 @@ class TabZenApp {
       }
     });
     
+    this.elements.templateSaveModal?.addEventListener('click', (e) => {
+      if (e.target === this.elements.templateSaveModal) {
+        this.hideModal(this.elements.templateSaveModal);
+      }
+    });
+    
+    this.elements.templateApplyModal?.addEventListener('click', (e) => {
+      if (e.target === this.elements.templateApplyModal) {
+        this.hideModal(this.elements.templateApplyModal);
+      }
+    });
+    
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         this.hideModal(this.elements.settingsModal);
         this.hideModal(this.elements.widgetGalleryModal);
+        this.hideModal(this.elements.templateSaveModal);
+        this.hideModal(this.elements.templateApplyModal);
         this.hideSearchResults();
       }
       
@@ -1606,6 +1719,512 @@ class TabZenApp {
     } catch (error) {
       alert(error.message);
     }
+  }
+
+  // Dashboard Template Methods
+  async toggleTemplateList() {
+    const isVisible = this.elements.templateListContainer.style.display === 'block';
+    
+    if (isVisible) {
+      this.elements.templateListContainer.style.display = 'none';
+      this.elements.manageTemplatesBtn.textContent = 'Manage Templates';
+    } else {
+      await this.renderDashboardTemplates();
+      this.elements.templateListContainer.style.display = 'block';
+      this.elements.manageTemplatesBtn.textContent = 'Hide Templates';
+    }
+  }
+
+  async renderDashboardTemplates() {
+    const templates = await this.storage.getTemplates();
+    
+    if (templates.length === 0) {
+      this.elements.dashboardTemplateList.innerHTML = `
+        <div class="template-empty">
+          <p>No dashboard templates yet</p>
+          <p>Save your current dashboard configuration as a template</p>
+        </div>
+      `;
+      return;
+    }
+    
+    this.elements.dashboardTemplateList.innerHTML = templates.map(template => {
+      const createdDate = new Date(template.createdAt).toLocaleDateString();
+      return `
+        <div class="dashboard-template-item" data-template-id="${template.id}">
+          <div class="template-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="9" y1="3" x2="9" y2="21"></line>
+              <line x1="3" y1="9" x2="21" y2="9"></line>
+            </svg>
+          </div>
+          <div class="template-info">
+            <div class="template-name">${this.escapeHtml(template.name)}</div>
+            <div class="template-description">${this.escapeHtml(template.description || 'No description')}</div>
+            <div class="template-meta">Created ${createdDate}</div>
+          </div>
+          <div class="template-actions-menu">
+            <button class="template-action-btn" title="Apply" data-action="apply" data-template-id="${template.id}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </button>
+            <button class="template-action-btn delete" title="Delete" data-action="delete" data-template-id="${template.id}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    // Add event listeners for dashboard template actions
+    this.elements.dashboardTemplateList.addEventListener('click', (e) => {
+      const btn = e.target.closest('.template-action-btn');
+      if (!btn) return;
+      
+      const action = btn.dataset.action;
+      const templateId = btn.dataset.templateId;
+      
+      switch (action) {
+        case 'apply':
+          this.showApplyTemplateModal(templateId);
+          break;
+        case 'delete':
+          this.deleteDashboardTemplate(templateId);
+          break;
+      }
+    });
+  }
+
+  async saveCurrentAsTemplate() {
+    const name = this.elements.templateNameInput.value.trim();
+    const description = this.elements.templateDescriptionInput.value.trim();
+    const includeData = this.elements.includeWidgetData.checked;
+    
+    if (!name) {
+      alert('Please enter a template name');
+      return;
+    }
+    
+    try {
+      // Get current dashboard configuration
+      const currentSpace = this.spaceManager.getCurrentSpace();
+      const widgetsData = await this.spaceManager.getWidgetsForSpace(currentSpace.id);
+      const widgets = Object.entries(widgetsData).map(([id, data]) => ({
+        id,
+        type: data.type,
+        size: data.size,
+        position: data.position,
+        data: data
+      }));
+      
+      const template = {
+        id: Date.now().toString(),
+        name,
+        description,
+        spaceConfig: {
+          name: currentSpace.name,
+          icon: currentSpace.icon
+        },
+        widgets: widgets.map(widget => ({
+          type: widget.type,
+          size: widget.size,
+          position: widget.position,
+          data: includeData ? widget.data : null
+        })),
+        settings: await this.storage.getSettings(),
+        createdAt: Date.now()
+      };
+      
+      await this.storage.saveTemplate(template);
+      this.hideModal(this.elements.templateSaveModal);
+      
+      // Refresh template list if visible
+      if (this.elements.templateListContainer.style.display === 'block') {
+        await this.renderDashboardTemplates();
+      }
+      
+      this.showToast('Dashboard template saved successfully');
+    } catch (error) {
+      console.error('Failed to save template:', error);
+      alert('Failed to save template. Please try again.');
+    }
+  }
+
+  showApplyTemplateModal(templateId) {
+    this.selectedTemplateId = templateId;
+    // In a real implementation, you would show the template apply modal here
+    // For now, let's directly apply the template
+    this.applyDashboardTemplate(templateId);
+  }
+
+  async applyDashboardTemplate(templateId) {
+    const template = await this.storage.getTemplate(templateId);
+    if (!template) return;
+    
+    if (!confirm(`Apply template "${template.name}"? This will replace your current dashboard.`)) {
+      return;
+    }
+    
+    try {
+      // Apply template settings
+      await this.storage.updateSettings(template.settings);
+      
+      // Clear current widgets
+      const currentSpace = this.spaceManager.getCurrentSpace();
+      const widgets = await this.spaceManager.getWidgetsForSpace(currentSpace.id);
+      for (const widgetId of Object.keys(widgets)) {
+        await this.spaceManager.removeWidgetFromSpace(widgetId, currentSpace.id);
+      }
+      
+      // Add template widgets
+      for (const widgetConfig of template.widgets) {
+        await this.widgetManager.addWidget(widgetConfig.type, {
+          size: widgetConfig.size,
+          position: widgetConfig.position,
+          data: widgetConfig.data
+        });
+      }
+      
+      // Reload to apply all changes
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to apply template:', error);
+      alert('Failed to apply template. Please try again.');
+    }
+  }
+
+  async deleteDashboardTemplate(templateId) {
+    if (!confirm('Delete this template?')) return;
+    
+    try {
+      await this.storage.deleteTemplate(templateId);
+      await this.renderDashboardTemplates();
+      this.showToast('Template deleted');
+    } catch (error) {
+      console.error('Failed to delete template:', error);
+      alert('Failed to delete template. Please try again.');
+    }
+  }
+
+  // Todo Template Methods
+  showCreateTodoTemplateModal() {
+    this.elements.todoTemplateNameInput.value = '';
+    this.elements.todoTemplateTasksInput.value = '';
+    this.showModal(this.elements.todoTemplateModal);
+    this.elements.todoTemplateNameInput.focus();
+  }
+
+  async toggleTodoTemplateList() {
+    const isVisible = this.elements.todoTemplateListContainer.style.display === 'block';
+    
+    if (isVisible) {
+      this.elements.todoTemplateListContainer.style.display = 'none';
+      this.elements.manageTodoTemplatesBtn.textContent = 'Manage Todo Templates';
+    } else {
+      await this.renderTodoTemplates();
+      this.elements.todoTemplateListContainer.style.display = 'block';
+      this.elements.manageTodoTemplatesBtn.textContent = 'Hide Todo Templates';
+    }
+  }
+
+  async renderTodoTemplates() {
+    const templates = await this.getTodoTemplates();
+    
+    if (templates.length === 0) {
+      this.elements.todoTemplateList.innerHTML = `
+        <div class="todo-template-empty">
+          <p>No todo templates yet</p>
+          <p>Create templates to quickly reuse common checklists</p>
+        </div>
+      `;
+      return;
+    }
+    
+    this.elements.todoTemplateList.innerHTML = templates.map(template => {
+      const createdDate = new Date(template.createdAt).toLocaleDateString();
+      return `
+        <div class="todo-template-item" data-template-id="${template.id}">
+          <div class="todo-template-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 11l3 3L22 4"></path>
+              <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+            </svg>
+          </div>
+          <div class="todo-template-info">
+            <div class="todo-template-name">${this.escapeHtml(template.name)}</div>
+            <div class="todo-template-meta">
+              <span>${template.items.length} tasks</span>
+              <span>Created ${createdDate}</span>
+            </div>
+            <div class="todo-template-preview" id="preview-${template.id}">
+              ${template.items.slice(0, 3).map(item => 
+                `<div class="todo-template-preview-item">• ${this.escapeHtml(item.text)}</div>`
+              ).join('')}
+              ${template.items.length > 3 ? `<div class="todo-template-preview-item">... and ${template.items.length - 3} more</div>` : ''}
+            </div>
+          </div>
+          <div class="todo-template-actions">
+            <button class="template-action-btn" title="Preview" data-action="preview" data-template-id="${template.id}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+            <button class="template-action-btn" title="Apply" data-action="apply" data-template-id="${template.id}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </button>
+            <button class="template-action-btn delete" title="Delete" data-action="delete" data-template-id="${template.id}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    // Add event listeners for todo template actions
+    this.elements.todoTemplateList.addEventListener('click', (e) => {
+      const btn = e.target.closest('.template-action-btn');
+      if (!btn) return;
+      
+      const action = btn.dataset.action;
+      const templateId = btn.dataset.templateId;
+      
+      switch (action) {
+        case 'preview':
+          this.toggleTodoTemplatePreview(templateId);
+          break;
+        case 'apply':
+          this.applyTodoTemplate(templateId);
+          break;
+        case 'delete':
+          this.deleteTodoTemplate(templateId);
+          break;
+      }
+    });
+  }
+
+  toggleTodoTemplatePreview(templateId) {
+    const preview = document.getElementById(`preview-${templateId}`);
+    if (preview) {
+      preview.classList.toggle('show');
+    }
+  }
+
+  async getTodoTemplates() {
+    // Get todo templates from all spaces
+    const allTemplates = [];
+    const spaces = this.spaceManager.getAllSpaces();
+    
+    for (const space of spaces) {
+      const widgets = await this.spaceManager.getWidgetsForSpace(space.id);
+      const todoWidgets = Object.entries(widgets).filter(([id, data]) => 
+        id.startsWith('todo-') && data.templates
+      );
+      
+      todoWidgets.forEach(([id, data]) => {
+        if (data.templates && Array.isArray(data.templates)) {
+          allTemplates.push(...data.templates);
+        }
+      });
+    }
+    
+    // Also check for standalone templates
+    const standaloneTemplates = await this.storage.get('todoTemplates', []);
+    if (Array.isArray(standaloneTemplates)) {
+      allTemplates.push(...standaloneTemplates);
+    }
+    
+    // Remove duplicates based on template id
+    const uniqueTemplates = allTemplates.reduce((acc, template) => {
+      if (!acc.find(t => t.id === template.id)) {
+        acc.push(template);
+      }
+      return acc;
+    }, []);
+    
+    return uniqueTemplates;
+  }
+
+  async saveTodoTemplate() {
+    const name = this.elements.todoTemplateNameInput.value.trim();
+    const tasksText = this.elements.todoTemplateTasksInput.value.trim();
+    
+    if (!name || !tasksText) {
+      alert('Please enter a template name and at least one task');
+      return;
+    }
+    
+    // Parse tasks from textarea (one per line)
+    const tasks = tasksText.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .map(text => ({ text, completed: false }));
+    
+    if (tasks.length === 0) {
+      alert('Please enter at least one task');
+      return;
+    }
+    
+    const template = {
+      id: Date.now().toString(),
+      name,
+      items: tasks,
+      createdAt: Date.now()
+    };
+    
+    // Find a todo widget in the current space to save the template to
+    const currentSpace = this.spaceManager.getCurrentSpace();
+    const widgets = await this.spaceManager.getWidgetsForSpace(currentSpace.id);
+    const todoWidgetId = Object.keys(widgets).find(id => id.startsWith('todo-'));
+    
+    if (todoWidgetId) {
+      // Add to existing todo widget's templates
+      const widgetData = widgets[todoWidgetId];
+      if (!widgetData.templates) {
+        widgetData.templates = [];
+      }
+      widgetData.templates.push(template);
+      await this.spaceManager.saveWidgetForSpace(todoWidgetId, widgetData);
+    } else {
+      // No todo widget exists, save to standalone storage
+      const existingTemplates = await this.storage.get('todoTemplates', []);
+      existingTemplates.push(template);
+      await this.storage.set('todoTemplates', existingTemplates);
+    }
+    
+    this.hideModal(this.elements.todoTemplateModal);
+    
+    // Refresh the template list if it's visible
+    if (this.elements.todoTemplateListContainer.style.display === 'block') {
+      await this.renderTodoTemplates();
+    }
+    
+    // Show success message
+    this.showToast('Todo template saved successfully');
+  }
+
+  async applyTodoTemplate(templateId) {
+    const templates = await this.getTodoTemplates();
+    const template = templates.find(t => t.id === templateId);
+    
+    if (!template) return;
+    
+    // Find all todo widgets on the current dashboard
+    const todoWidgets = Array.from(document.querySelectorAll('.widget')).filter(widget => 
+      widget.dataset.type === 'todo'
+    );
+    
+    if (todoWidgets.length === 0) {
+      if (confirm('No todo widget found. Would you like to add one?')) {
+        // Add a todo widget and then apply the template
+        const widgetId = await this.widgetManager.addWidget('todo');
+        setTimeout(() => {
+          this.applyTemplateToTodoWidget(widgetId, template);
+        }, 100);
+      }
+      return;
+    }
+    
+    // If multiple todo widgets, ask which one
+    if (todoWidgets.length > 1) {
+      // For simplicity, apply to the first one
+      // In a real implementation, you might want to show a selection dialog
+      const widgetId = todoWidgets[0].dataset.id;
+      this.applyTemplateToTodoWidget(widgetId, template);
+    } else {
+      const widgetId = todoWidgets[0].dataset.id;
+      this.applyTemplateToTodoWidget(widgetId, template);
+    }
+  }
+
+  async applyTemplateToTodoWidget(widgetId, template) {
+    const widgetInstance = this.widgetManager.widgets.get(widgetId);
+    if (widgetInstance && widgetInstance.applyTemplate) {
+      // Show options dialog
+      const choice = confirm(`Apply "${template.name}" template?\n\nOK: Replace current tasks\nCancel: Add to current tasks`);
+      widgetInstance.applyTemplate(template.id, choice ? 'replace' : 'append');
+      this.showToast(`Template "${template.name}" applied`);
+    }
+  }
+
+  async deleteTodoTemplate(templateId) {
+    if (!confirm('Delete this template?')) return;
+    
+    // Find and update the todo widget containing this template across all spaces
+    const spaces = this.spaceManager.getAllSpaces();
+    let templateDeleted = false;
+    
+    for (const space of spaces) {
+      const widgets = await this.spaceManager.getWidgetsForSpace(space.id);
+      for (const [widgetId, widgetData] of Object.entries(widgets)) {
+        if (widgetId.startsWith('todo-') && widgetData.templates) {
+          const originalLength = widgetData.templates.length;
+          widgetData.templates = widgetData.templates.filter(t => t.id !== templateId);
+          if (widgetData.templates.length < originalLength) {
+            await this.spaceManager.saveWidgetForSpace(widgetId, widgetData, space.id);
+            templateDeleted = true;
+          }
+        }
+      }
+    }
+    
+    // Also check standalone templates
+    const standaloneTemplates = await this.storage.get('todoTemplates', []);
+    if (standaloneTemplates.length > 0) {
+      const filtered = standaloneTemplates.filter(t => t.id !== templateId);
+      if (filtered.length < standaloneTemplates.length) {
+        await this.storage.set('todoTemplates', filtered);
+        templateDeleted = true;
+      }
+    }
+    
+    if (templateDeleted) {
+      // Refresh the template list
+      await this.renderTodoTemplates();
+      this.showToast('Template deleted');
+    }
+  }
+
+  showToast(message) {
+    // Simple toast notification
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--foreground);
+      color: var(--background);
+      padding: 12px 24px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 10000;
+      animation: slideUp 0.3s ease;
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.style.animation = 'slideDown 0.3s ease';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 }
 

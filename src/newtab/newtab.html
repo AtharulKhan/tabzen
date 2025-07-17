@@ -217,10 +217,108 @@
           </label>
         </div>
         <div class="settings-section">
+          <h3>Templates</h3>
+          <div class="template-actions">
+            <button class="btn btn-primary" id="saveTemplateBtn">Save Current Dashboard</button>
+            <button class="btn btn-secondary" id="manageTemplatesBtn">Manage Templates</button>
+          </div>
+          <div class="template-list-container" id="templateListContainer" style="display: none;">
+            <div class="template-list" id="dashboardTemplateList">
+              <!-- Templates will be dynamically inserted here -->
+            </div>
+          </div>
+          
+          <!-- Todo Templates Section -->
+          <div class="template-subsection">
+            <h4>Todo Templates</h4>
+            <p class="template-description">Create and manage reusable checklists for your todo widgets</p>
+            <div class="template-actions">
+              <button class="btn btn-primary" id="createTodoTemplateBtn">Create Todo Template</button>
+              <button class="btn btn-secondary" id="manageTodoTemplatesBtn">Manage Todo Templates</button>
+            </div>
+            <div class="template-list-container" id="todoTemplateListContainer" style="display: none;">
+              <div class="template-list" id="todoTemplateList">
+                <!-- Todo templates will be dynamically inserted here -->
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="settings-section">
           <h3>Data</h3>
           <button class="btn btn-secondary" id="exportDataBtn">Export Data</button>
           <button class="btn btn-secondary" id="importDataBtn">Import Data</button>
           <input type="file" id="importFileInput" accept=".json" style="display: none;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Template Save Modal -->
+  <div class="modal" id="templateSaveModal">
+    <div class="modal-content modal-compact">
+      <div class="modal-header">
+        <h2>Save Dashboard Template</h2>
+        <button class="icon-button" id="closeTemplateSaveBtn" aria-label="Close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="template-save-form">
+          <label class="form-label">
+            <span>Template Name</span>
+            <input type="text" id="templateNameInput" class="form-input" placeholder="e.g., Work Dashboard" maxlength="50">
+          </label>
+          <label class="form-label">
+            <span>Description (optional)</span>
+            <textarea id="templateDescriptionInput" class="form-input" placeholder="Describe this template..." rows="3" maxlength="200"></textarea>
+          </label>
+          <div class="template-save-options">
+            <label class="checkbox-label">
+              <input type="checkbox" id="includeWidgetData" checked>
+              <span>Include widget data (todos, notes, etc.)</span>
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="cancelTemplateSaveBtn">Cancel</button>
+          <button class="btn btn-primary" id="confirmTemplateSaveBtn">Save Template</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Template Apply Modal -->
+  <div class="modal" id="templateApplyModal">
+    <div class="modal-content modal-compact">
+      <div class="modal-header">
+        <h2 id="templateApplyTitle">Apply Template</h2>
+        <button class="icon-button" id="closeTemplateApplyBtn" aria-label="Close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="template-apply-options">
+          <div class="apply-option" data-mode="replace">
+            <h4>Replace Current Dashboard</h4>
+            <p>Clear everything and load the template</p>
+          </div>
+          <div class="apply-option" data-mode="merge">
+            <h4>Merge with Current</h4>
+            <p>Add template widgets to existing dashboard</p>
+          </div>
+          <div class="apply-option" data-mode="new-space">
+            <h4>Create New Space</h4>
+            <p>Load template in a new space</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="cancelTemplateApplyBtn">Cancel</button>
         </div>
       </div>
     </div>
@@ -274,6 +372,45 @@
       <div class="modal-body">
         <div class="widget-gallery" id="widgetGallery">
           <!-- Widget options will be dynamically inserted here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Todo Template Create Modal -->
+  <div class="modal" id="todoTemplateModal">
+    <div class="modal-content modal-compact">
+      <div class="modal-header">
+        <h2 id="todoTemplateModalTitle">Create Todo Template</h2>
+        <button class="icon-button" id="closeTodoTemplateBtn" aria-label="Close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="todo-template-form">
+          <label class="form-label">
+            <span>Template Name</span>
+            <input type="text" id="todoTemplateNameInput" class="form-input" placeholder="e.g., Daily Routine" maxlength="50">
+          </label>
+          <label class="form-label">
+            <span>Tasks (one per line)</span>
+            <textarea id="todoTemplateTasksInput" class="form-input" placeholder="Enter tasks, one per line..." rows="8"></textarea>
+          </label>
+          <div class="template-hint">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>Tip: You can also save templates from existing todos using the todo widget's template button</span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="cancelTodoTemplateBtn">Cancel</button>
+          <button class="btn btn-primary" id="saveTodoTemplateBtn">Save Template</button>
         </div>
       </div>
     </div>

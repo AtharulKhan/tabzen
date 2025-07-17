@@ -187,4 +187,54 @@ export class StorageManager {
       return null;
     }
   }
+  
+  // Template Management Methods
+  async getTemplates() {
+    return await this.get('dashboardTemplates', []);
+  }
+  
+  async saveTemplate(template) {
+    const templates = await this.getTemplates();
+    const newTemplate = {
+      id: `template-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      name: template.name,
+      description: template.description || '',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      data: template.data
+    };
+    
+    templates.push(newTemplate);
+    await this.set('dashboardTemplates', templates, true);
+    return newTemplate;
+  }
+  
+  async updateTemplate(templateId, updates) {
+    const templates = await this.getTemplates();
+    const index = templates.findIndex(t => t.id === templateId);
+    
+    if (index !== -1) {
+      templates[index] = {
+        ...templates[index],
+        ...updates,
+        updatedAt: Date.now()
+      };
+      await this.set('dashboardTemplates', templates, true);
+      return templates[index];
+    }
+    
+    return null;
+  }
+  
+  async deleteTemplate(templateId) {
+    const templates = await this.getTemplates();
+    const filtered = templates.filter(t => t.id !== templateId);
+    await this.set('dashboardTemplates', filtered, true);
+    return true;
+  }
+  
+  async getTemplate(templateId) {
+    const templates = await this.getTemplates();
+    return templates.find(t => t.id === templateId) || null;
+  }
 }
