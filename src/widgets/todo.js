@@ -18,6 +18,32 @@ export class TodoWidget {
     this.render();
     this.attachListeners();
     this.registerCommands();
+    
+    // Check for pending template to apply
+    const pendingTemplate = sessionStorage.getItem('pendingTodoTemplate');
+    if (pendingTemplate) {
+      try {
+        const templateData = JSON.parse(pendingTemplate);
+        // Apply template items to this new widget
+        templateData.templateItems.forEach(item => {
+          this.todos.push({
+            id: Date.now().toString() + Math.random(),
+            text: item.text,
+            completed: false,
+            createdAt: Date.now()
+          });
+        });
+        
+        this.saveState();
+        this.renderTodos();
+        
+        // Clear the pending template data
+        sessionStorage.removeItem('pendingTodoTemplate');
+      } catch (error) {
+        console.error('Error applying pending template:', error);
+        sessionStorage.removeItem('pendingTodoTemplate');
+      }
+    }
   }
   
   async loadState() {
@@ -838,6 +864,10 @@ export class TodoWidget {
               <h4>Add to current list</h4>
               <p>Keep existing tasks and add template items at the end</p>
             </div>
+            <div class="template-apply-option" data-action="new-widget">
+              <h4>Create as new widget</h4>
+              <p>Create a new todo widget beside this one with the template</p>
+            </div>
           </div>
           <div class="template-modal-actions">
             <button class="template-modal-btn secondary" id="templateApplyCancel">Cancel</button>
@@ -1311,11 +1341,49 @@ export class TodoWidget {
     });
     
     // Template apply options
-    this.templateApplyModal.addEventListener('click', (e) => {
+    this.templateApplyModal.addEventListener('click', async (e) => {
       const option = e.target.closest('.template-apply-option');
       if (option && this.selectedTemplateId) {
         const action = option.dataset.action;
-        this.applyTemplate(this.selectedTemplateId, action);
+        
+        if (action === 'new-widget') {
+          // Create a new todo widget
+          if (window.widgetManager) {
+            const template = this.templates.find(t => t.id === this.selectedTemplateId);
+            if (template) {
+              // Store template data for the new widget to pick up
+              const templateData = {
+                templateId: this.selectedTemplateId,
+                templateItems: template.items,
+                templateName: template.name
+              };
+              
+              // Save template data temporarily in session storage
+              sessionStorage.setItem('pendingTodoTemplate', JSON.stringify(templateData));
+              
+              // Create new widget
+              const container = document.getElementById('widgetGrid') || document.querySelector('.widget-grid');
+              if (container) {
+                try {
+                  await window.widgetManager.addWidget('todo', container);
+                  console.log('New todo widget created with template:', template.name);
+                } catch (error) {
+                  console.error('Failed to create new todo widget:', error);
+                }
+              } else {
+                console.error('Widget container not found');
+              }
+            } else {
+              console.error('Template not found:', this.selectedTemplateId);
+            }
+          } else {
+            console.error('Widget manager not available');
+          }
+        } else {
+          // Handle existing actions (replace/append)
+          this.applyTemplate(this.selectedTemplateId, action);
+        }
+        
         this.templateApplyModal.classList.remove('show');
         this.selectedTemplateId = null;
       }
