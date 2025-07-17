@@ -80,7 +80,9 @@ class TabZenApp {
       todoTemplateListContainer: document.getElementById('todoTemplateListContainer'),
       todoTemplateList: document.getElementById('todoTemplateList'),
       todoTemplateModal: document.getElementById('todoTemplateModal'),
+      todoTemplateModalTitle: document.getElementById('todoTemplateModalTitle'),
       closeTodoTemplateBtn: document.getElementById('closeTodoTemplateBtn'),
+      todoTemplateIdInput: document.getElementById('todoTemplateIdInput'),
       todoTemplateNameInput: document.getElementById('todoTemplateNameInput'),
       todoTemplateTasksInput: document.getElementById('todoTemplateTasksInput'),
       cancelTodoTemplateBtn: document.getElementById('cancelTodoTemplateBtn'),
@@ -1913,6 +1915,10 @@ class TabZenApp {
 
   // Todo Template Methods
   showCreateTodoTemplateModal() {
+    // Reset to create mode
+    this.elements.todoTemplateIdInput.value = '';
+    this.elements.todoTemplateModalTitle.textContent = 'Create Todo Template';
+    this.elements.saveTodoTemplateBtn.textContent = 'Save Template';
     this.elements.todoTemplateNameInput.value = '';
     this.elements.todoTemplateTasksInput.value = '';
     this.showModal(this.elements.todoTemplateModal);
@@ -1975,6 +1981,12 @@ class TabZenApp {
                 <circle cx="12" cy="12" r="3"></circle>
               </svg>
             </button>
+            <button class="template-action-btn" title="Edit" data-action="edit" data-template-id="${template.id}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+            </button>
             <button class="template-action-btn" title="Apply" data-action="apply" data-template-id="${template.id}">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="20 6 9 17 4 12"></polyline>
@@ -2002,6 +2014,9 @@ class TabZenApp {
       switch (action) {
         case 'preview':
           this.toggleTodoTemplatePreview(templateId);
+          break;
+        case 'edit':
+          this.editTodoTemplate(templateId);
           break;
         case 'apply':
           this.applyTodoTemplate(templateId);
@@ -2058,6 +2073,7 @@ class TabZenApp {
   async saveTodoTemplate() {
     const name = this.elements.todoTemplateNameInput.value.trim();
     const tasksText = this.elements.todoTemplateTasksInput.value.trim();
+    const templateId = this.elements.todoTemplateIdInput.value;
     
     if (!name || !tasksText) {
       alert('Please enter a template name and at least one task');
@@ -2075,31 +2091,79 @@ class TabZenApp {
       return;
     }
     
-    const template = {
-      id: Date.now().toString(),
-      name,
-      items: tasks,
-      createdAt: Date.now()
-    };
-    
-    // Find a todo widget in the current space to save the template to
-    const currentSpace = this.spaceManager.getCurrentSpace();
-    const widgets = await this.spaceManager.getWidgetsForSpace(currentSpace.id);
-    const todoWidgetId = Object.keys(widgets).find(id => id.startsWith('todo-'));
-    
-    if (todoWidgetId) {
-      // Add to existing todo widget's templates
-      const widgetData = widgets[todoWidgetId];
-      if (!widgetData.templates) {
-        widgetData.templates = [];
+    if (templateId) {
+      // Edit mode - update existing template
+      const spaces = this.spaceManager.getAllSpaces();
+      let templateUpdated = false;
+      
+      for (const space of spaces) {
+        const widgets = await this.spaceManager.getWidgetsForSpace(space.id);
+        for (const [widgetId, widgetData] of Object.entries(widgets)) {
+          if (widgetId.startsWith('todo-') && widgetData.templates) {
+            const templateIndex = widgetData.templates.findIndex(t => t.id === templateId);
+            if (templateIndex !== -1) {
+              // Update the template, preserving the original id and createdAt
+              widgetData.templates[templateIndex] = {
+                ...widgetData.templates[templateIndex],
+                name,
+                items: tasks
+              };
+              await this.spaceManager.saveWidgetForSpace(widgetId, widgetData, space.id);
+              templateUpdated = true;
+              break;
+            }
+          }
+        }
+        if (templateUpdated) break;
       }
-      widgetData.templates.push(template);
-      await this.spaceManager.saveWidgetForSpace(todoWidgetId, widgetData);
+      
+      // Also check standalone templates
+      if (!templateUpdated) {
+        const standaloneTemplates = await this.storage.get('todoTemplates', []);
+        const templateIndex = standaloneTemplates.findIndex(t => t.id === templateId);
+        if (templateIndex !== -1) {
+          standaloneTemplates[templateIndex] = {
+            ...standaloneTemplates[templateIndex],
+            name,
+            items: tasks
+          };
+          await this.storage.set('todoTemplates', standaloneTemplates);
+          templateUpdated = true;
+        }
+      }
+      
+      if (!templateUpdated) {
+        alert('Template not found. It may have been deleted.');
+        return;
+      }
     } else {
-      // No todo widget exists, save to standalone storage
-      const existingTemplates = await this.storage.get('todoTemplates', []);
-      existingTemplates.push(template);
-      await this.storage.set('todoTemplates', existingTemplates);
+      // Create mode - add new template
+      const template = {
+        id: Date.now().toString(),
+        name,
+        items: tasks,
+        createdAt: Date.now()
+      };
+      
+      // Find a todo widget in the current space to save the template to
+      const currentSpace = this.spaceManager.getCurrentSpace();
+      const widgets = await this.spaceManager.getWidgetsForSpace(currentSpace.id);
+      const todoWidgetId = Object.keys(widgets).find(id => id.startsWith('todo-'));
+      
+      if (todoWidgetId) {
+        // Add to existing todo widget's templates
+        const widgetData = widgets[todoWidgetId];
+        if (!widgetData.templates) {
+          widgetData.templates = [];
+        }
+        widgetData.templates.push(template);
+        await this.spaceManager.saveWidgetForSpace(todoWidgetId, widgetData);
+      } else {
+        // No todo widget exists, save to standalone storage
+        const existingTemplates = await this.storage.get('todoTemplates', []);
+        existingTemplates.push(template);
+        await this.storage.set('todoTemplates', existingTemplates);
+      }
     }
     
     this.hideModal(this.elements.todoTemplateModal);
@@ -2110,7 +2174,8 @@ class TabZenApp {
     }
     
     // Show success message
-    this.showToast('Todo template saved successfully');
+    const message = templateId ? 'Todo template updated successfully' : 'Todo template saved successfully';
+    this.showToast(message);
   }
 
   async applyTodoTemplate(templateId) {
@@ -2155,6 +2220,24 @@ class TabZenApp {
       widgetInstance.applyTemplate(template.id, choice ? 'replace' : 'append');
       this.showToast(`Template "${template.name}" applied`);
     }
+  }
+
+  async editTodoTemplate(templateId) {
+    const templates = await this.getTodoTemplates();
+    const template = templates.find(t => t.id === templateId);
+    
+    if (!template) return;
+    
+    // Set modal to edit mode
+    this.elements.todoTemplateIdInput.value = template.id;
+    this.elements.todoTemplateModalTitle.textContent = 'Edit Todo Template';
+    this.elements.saveTodoTemplateBtn.textContent = 'Update Template';
+    this.elements.todoTemplateNameInput.value = template.name;
+    this.elements.todoTemplateTasksInput.value = template.items.map(item => item.text).join('\n');
+    
+    // Show the modal
+    this.showModal(this.elements.todoTemplateModal);
+    this.elements.todoTemplateNameInput.focus();
   }
 
   async deleteTodoTemplate(templateId) {
