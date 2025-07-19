@@ -10,6 +10,7 @@ import { BookmarksManager } from '../utils/bookmarks.js';
 import { WidgetResize } from '../utils/widgetResize.js';
 import { CommandPalette } from '../utils/commandPalette.js';
 import { CommandRegistry } from '../utils/commands.js';
+import { MiniQuickLinksManager } from '../utils/miniQuickLinks.js';
 
 // Import widgets
 import { QuickLinksWidget } from '../widgets/quickLinks.js';
@@ -35,6 +36,7 @@ class TabZenApp {
     this.dragAndDrop = null;
     this.widgetResize = null;
     this.scratchpad = null;
+    this.miniQuickLinks = null;
     
     // Search state
     this.searchTimeout = null;
@@ -140,6 +142,9 @@ class TabZenApp {
       
       // Initialize scratchpad
       this.initScratchpad();
+      
+      // Initialize mini quick links
+      this.initMiniQuickLinks();
       
       // Load widgets for current space
       await this.widgetManager.loadWidgets(this.elements.widgetGrid);
@@ -1415,6 +1420,12 @@ class TabZenApp {
     if (window.Scratchpad) {
       this.scratchpad = new window.Scratchpad();
     }
+  }
+  
+  async initMiniQuickLinks() {
+    // Create mini quick links instance
+    this.miniQuickLinks = new MiniQuickLinksManager(this.storage, this.eventBus);
+    await this.miniQuickLinks.init();
   }
   
   initCommandPalette() {

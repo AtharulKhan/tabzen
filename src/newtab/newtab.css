@@ -157,7 +157,7 @@ body {
 .search-container {
   position: relative;
   z-index: 2;
-  margin-bottom: var(--space-2xl);
+  margin-bottom: 0;
   animation: fadeIn var(--transition-slow) ease-out 100ms;
 }
 
@@ -1332,4 +1332,149 @@ body {
   height: 1px;
   background: var(--border);
   margin: var(--space-sm) 0;
+}
+
+/* Mini Quick Links Bar */
+.mini-quick-links-container {
+  margin-top: 16px;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  animation: fadeIn var(--transition-slow) ease-out 200ms;
+}
+
+.mini-quick-links-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mini-quick-links-list {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mini-quick-link {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .mini-quick-link {
+  background: var(--surface);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.mini-quick-link:hover {
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="dark"] .mini-quick-link:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.mini-quick-link img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.mini-quick-link-initials {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--primary);
+  user-select: none;
+}
+
+.mini-quick-link-add {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: transparent;
+  border: 1px dashed var(--border);
+  padding: 0;
+  color: var(--muted);
+  opacity: 0.5;
+}
+
+.mini-quick-link-add:hover {
+  opacity: 1;
+  transform: scale(1.1);
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--surface);
+}
+
+.mini-quick-link-add svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Edit mode for mini quick links */
+.mini-quick-links-container.editing .mini-quick-link {
+  animation: wiggle 0.3s ease-in-out infinite;
+}
+
+.mini-quick-links-container.editing .mini-quick-link-remove {
+  display: flex;
+}
+
+.mini-quick-link-remove {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 14px;
+  height: 14px;
+  background: var(--error);
+  color: white;
+  border-radius: 50%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  z-index: 10;
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+
+/* Mini quick link modal - reuse existing modal styles but make it more compact */
+.mini-quick-link-modal {
+  min-width: 320px;
+}
+
+.mini-quick-link-modal input {
+  font-size: 14px;
+  padding: 8px 12px;
 }
