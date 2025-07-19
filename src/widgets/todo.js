@@ -268,14 +268,17 @@ export class TodoWidget {
           pointer-events: auto;
           color: var(--primary);
           text-decoration: underline;
+          cursor: pointer !important;
         }
         
         .todo-text a:hover {
           opacity: 0.8;
+          text-decoration-thickness: 2px;
         }
         
         .todo-text[contenteditable="true"] a {
-          pointer-events: none;
+          pointer-events: auto;
+          cursor: pointer !important;
         }
         
         /* Template styles */
@@ -1195,6 +1198,17 @@ export class TodoWidget {
       const todo = this.todos.find(t => t.id === todoId);
       if (!todo) return;
       
+      // Handle link clicks
+      if (e.target.tagName === 'A') {
+        e.preventDefault(); // Always prevent default to avoid navigation
+        
+        if (e.ctrlKey || e.metaKey) { // Support Cmd key on Mac
+          const url = e.target.href;
+          chrome.tabs.create({ url: url });
+        }
+        return;
+      }
+      
       // Toggle checkbox
       if (e.target.classList.contains('todo-checkbox')) {
         todo.completed = e.target.checked;
@@ -1514,7 +1528,7 @@ export class TodoWidget {
     
     // Replace URLs with clickable links
     return escaped.replace(urlRegex, (url) => {
-      return `<a href="${url}" target="_blank" rel="noopener noreferrer" contenteditable="false" style="color: var(--primary); text-decoration: underline;">${url}</a>`;
+      return `<a href="${url}" target="_blank" rel="noopener noreferrer" contenteditable="false" title="Ctrl+Click (Cmd+Click on Mac) to open in new tab" style="color: var(--primary); text-decoration: underline; cursor: pointer !important; user-select: none;">${url}</a>`;
     });
   }
 
