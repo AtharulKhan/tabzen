@@ -1,0 +1,347 @@
+/* Vision Board Styles */
+
+.vision-board-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  z-index: 10000;
+  display: none; /* Hidden by default */
+  align-items: center;
+  justify-content: center;
+}
+
+/* Removed animation for now to debug visibility issue */
+
+.vision-board-container {
+  background: white; /* Use fixed color for debugging */
+  border-radius: 12px;
+  width: 95vw;
+  height: 95vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  position: relative; /* Ensure it's positioned */
+}
+
+.vision-board-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.vision-board-header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.vision-board-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.board-selector {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 14px;
+  min-width: 200px;
+  cursor: pointer;
+}
+
+.board-selector:hover {
+  border-color: var(--muted);
+}
+
+.board-selector:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.vision-board-header-right {
+  display: flex;
+  gap: 8px;
+}
+
+.vision-board-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.toolbar-btn:hover {
+  background: var(--surface-hover);
+  color: var(--foreground);
+  border-color: var(--border);
+}
+
+.toolbar-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.toolbar-btn.active:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+  margin: 0 8px;
+}
+
+.vision-board-canvas-container {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  position: relative;
+}
+
+.dark-theme .vision-board-canvas-container {
+  background: #1a1a1a;
+}
+
+#visionBoardCanvas {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: white;
+}
+
+.dark-theme #visionBoardCanvas {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Canvas controls styling */
+.canvas-container {
+  margin: auto !important;
+}
+
+/* Fabric.js object controls */
+.canvas-container .upper-canvas {
+  cursor: default;
+}
+
+/* Tool-specific cursors */
+.vision-board-canvas-container[data-tool="text"] .upper-canvas {
+  cursor: text !important;
+}
+
+.vision-board-canvas-container[data-tool="rectangle"] .upper-canvas,
+.vision-board-canvas-container[data-tool="circle"] .upper-canvas,
+.vision-board-canvas-container[data-tool="line"] .upper-canvas {
+  cursor: crosshair !important;
+}
+
+.vision-board-canvas-container[data-tool="image"] .upper-canvas {
+  cursor: copy !important;
+}
+
+/* Save indicator animation */
+@keyframes checkmark {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.save-success svg {
+  animation: checkmark 0.3s ease;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .vision-board-container {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+  }
+  
+  .vision-board-header {
+    padding: 12px 16px;
+  }
+  
+  .vision-board-title {
+    font-size: 18px;
+  }
+  
+  .board-selector {
+    min-width: 150px;
+    font-size: 13px;
+  }
+  
+  .vision-board-toolbar {
+    padding: 8px 16px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .toolbar-btn {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+}
+
+/* Loading state */
+.vision-board-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Empty state */
+.vision-board-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: var(--muted);
+}
+
+.vision-board-empty h3 {
+  font-size: 18px;
+  margin-bottom: 8px;
+  color: var(--foreground);
+}
+
+.vision-board-empty p {
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+/* Template gallery (future feature) */
+.template-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  padding: 20px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.template-item {
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.template-item:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.template-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 12px;
+  background: var(--surface);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.template-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+/* Board Management Dropdown */
+.board-manage-dropdown {
+  position: absolute;
+  top: 60px;
+  right: 140px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 180px;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.dark-theme .board-manage-dropdown {
+  background: var(--surface);
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  color: var(--foreground);
+  cursor: pointer;
+  transition: background 0.2s ease;
+  text-align: left;
+}
+
+.dropdown-item:hover {
+  background: var(--surface-hover);
+}
+
+.dropdown-item.delete-item {
+  color: #E74C3C;
+}
+
+.dropdown-item.delete-item:hover {
+  background: rgba(231, 76, 60, 0.1);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}

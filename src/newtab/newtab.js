@@ -22,6 +22,7 @@ import { CalendarWidget } from '../widgets/calendar.js';
 import { RecentTabsWidget } from '../widgets/recentTabs.js';
 import { WebViewerWidget } from '../widgets/webViewer.js';
 import { TabSaverWidget } from '../widgets/tabSaver.js';
+import { VisionBoardWidget } from '../widgets/visionBoard.js';
 
 class TabZenApp {
   constructor() {
@@ -37,6 +38,7 @@ class TabZenApp {
     this.widgetResize = null;
     this.scratchpad = null;
     this.miniQuickLinks = null;
+    this.visionBoard = null;
     
     // Search state
     this.searchTimeout = null;
@@ -142,6 +144,9 @@ class TabZenApp {
       
       // Initialize scratchpad
       this.initScratchpad();
+      
+      // Initialize vision board
+      this.initVisionBoard();
       
       // Initialize mini quick links
       this.initMiniQuickLinks();
@@ -1420,6 +1425,17 @@ class TabZenApp {
     if (window.Scratchpad) {
       this.scratchpad = new window.Scratchpad();
     }
+  }
+  
+  async initVisionBoard() {
+    // Create vision board instance
+    this.visionBoard = new VisionBoardWidget(null, {
+      id: 'visionBoard',
+      storage: this.storage,
+      eventBus: this.eventBus,
+      savedData: {}
+    });
+    await this.visionBoard.init();
   }
   
   async initMiniQuickLinks() {

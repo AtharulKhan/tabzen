@@ -237,4 +237,50 @@ export class StorageManager {
     const templates = await this.getTemplates();
     return templates.find(t => t.id === templateId) || null;
   }
+  
+  // Vision Board Methods
+  async getVisionBoards() {
+    return await this.get('visionBoards', {
+      boards: [],
+      activeBoard: null,
+      settings: {
+        defaultTemplate: null,
+        gridEnabled: true,
+        autoSave: true
+      }
+    });
+  }
+  
+  async saveVisionBoards(data) {
+    await this.set('visionBoards', data, true);
+  }
+  
+  async createVisionBoard(name, template = null) {
+    const visionBoards = await this.getVisionBoards();
+    const newBoard = {
+      id: `board-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      name: name,
+      canvas: '',
+      created: Date.now(),
+      modified: Date.now(),
+      template: template
+    };
+    
+    visionBoards.boards.push(newBoard);
+    visionBoards.activeBoard = newBoard.id;
+    await this.saveVisionBoards(visionBoards);
+    return newBoard;
+  }
+  
+  async deleteVisionBoard(boardId) {
+    const visionBoards = await this.getVisionBoards();
+    visionBoards.boards = visionBoards.boards.filter(b => b.id !== boardId);
+    
+    if (visionBoards.activeBoard === boardId) {
+      visionBoards.activeBoard = visionBoards.boards.length > 0 ? visionBoards.boards[0].id : null;
+    }
+    
+    await this.saveVisionBoards(visionBoards);
+    return true;
+  }
 }

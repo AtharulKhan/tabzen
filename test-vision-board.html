@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vision Board Test - TabZen</title>
+  <link rel="stylesheet" href="src/styles/global.css">
+  <link rel="stylesheet" href="src/newtab/newtab.css">
+  <link rel="stylesheet" href="src/styles/visionBoard.css">
+  <style>
+    body {
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    .test-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .test-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .test-info {
+      background: #f0f4f8;
+      padding: 15px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+    }
+    .test-info h3 {
+      margin: 0 0 10px 0;
+    }
+    .test-info ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-container">
+    <div class="test-header">
+      <h1>Vision Board Test</h1>
+      <button class="icon-button" id="visionBoardBtn" aria-label="Open Vision Board" style="display: flex; align-items: center; gap: 8px; padding: 8px 16px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+          <polyline points="21 15 16 10 5 21"></polyline>
+        </svg>
+        <span>Open Vision Board</span>
+      </button>
+    </div>
+    
+    <div class="test-info">
+      <h3>Test Instructions:</h3>
+      <ul>
+        <li>Click "Open Vision Board" button to launch the Vision Board</li>
+        <li>Try creating a new board</li>
+        <li>Test all tools: Text, Image, Rectangle, Circle, Line</li>
+        <li>Test saving and loading boards</li>
+        <li>Test export functionality</li>
+        <li>Check if boards persist after page reload</li>
+      </ul>
+    </div>
+    
+    <div class="test-info">
+      <h3>Features to Test:</h3>
+      <ul>
+        <li><strong>Select Tool:</strong> Click to select and manipulate objects</li>
+        <li><strong>Text Tool:</strong> Click canvas to add text, click text to edit</li>
+        <li><strong>Image Tool:</strong> Click to open file picker</li>
+        <li><strong>Rectangle Tool:</strong> Click canvas to add rectangle</li>
+        <li><strong>Circle Tool:</strong> Click canvas to add circle</li>
+        <li><strong>Line Tool:</strong> Click and drag to draw line</li>
+        <li><strong>Delete:</strong> Select object and click delete or press Delete key</li>
+        <li><strong>Save:</strong> Auto-saves on changes, manual save button available</li>
+        <li><strong>Export:</strong> Download board as PNG image</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Vision Board Modal -->
+  <div id="visionBoardModal" class="vision-board-modal" style="display: none;">
+    <div class="vision-board-container">
+      <div class="vision-board-header">
+        <div class="vision-board-header-left">
+          <h2 class="vision-board-title">Vision Board</h2>
+          <select id="boardSelector" class="board-selector">
+            <option value="">Select a board...</option>
+          </select>
+        </div>
+        <div class="vision-board-header-right">
+          <button class="icon-button" id="boardManageBtn" aria-label="Manage Board">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="1"></circle>
+              <circle cx="12" cy="5" r="1"></circle>
+              <circle cx="12" cy="19" r="1"></circle>
+            </svg>
+          </button>
+          <button class="icon-button" id="visionBoardSaveBtn" aria-label="Save">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+          </button>
+          <button class="icon-button" id="visionBoardExportBtn" aria-label="Export">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
+          <button class="icon-button" id="visionBoardCloseBtn" aria-label="Close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="vision-board-toolbar">
+        <button class="toolbar-btn active" id="selectTool" data-tool="select" aria-label="Select">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 3l18 6-6 2-2 6-6-18z"></path>
+          </svg>
+        </button>
+        <button class="toolbar-btn" id="textTool" data-tool="text" aria-label="Add Text">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="4 7 4 4 20 4 20 7"></polyline>
+            <line x1="9" y1="20" x2="15" y2="20"></line>
+            <line x1="12" y1="4" x2="12" y2="20"></line>
+          </svg>
+        </button>
+        <button class="toolbar-btn" id="imageTool" data-tool="image" aria-label="Add Image">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+            <polyline points="21 15 16 10 5 21"></polyline>
+          </svg>
+        </button>
+        <button class="toolbar-btn" id="rectangleTool" data-tool="rectangle" aria-label="Add Rectangle">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          </svg>
+        </button>
+        <button class="toolbar-btn" id="circleTool" data-tool="circle" aria-label="Add Circle">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+          </svg>
+        </button>
+        <button class="toolbar-btn" id="lineTool" data-tool="line" aria-label="Add Line">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+        <div class="toolbar-separator"></div>
+        <button class="toolbar-btn" id="deleteTool" aria-label="Delete Selected">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="vision-board-canvas-container">
+        <canvas id="visionBoardCanvas"></canvas>
+      </div>
+      <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+      
+      <!-- Board Management Dropdown -->
+      <div id="boardManageDropdown" class="board-manage-dropdown" style="display: none;">
+        <button class="dropdown-item" id="renameBoardBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+          Rename Board
+        </button>
+        <button class="dropdown-item" id="duplicateBoardBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+          </svg>
+          Duplicate Board
+        </button>
+        <div class="dropdown-divider"></div>
+        <button class="dropdown-item delete-item" id="deleteBoardBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+          </svg>
+          Delete Board
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="src/libs/fabric.min.js"></script>
+  <script>
+    // Mock Chrome storage API for testing
+    if (!window.chrome || !window.chrome.storage) {
+      window.chrome = {
+        storage: {
+          local: {
+            get: async (keys) => {
+              const result = {};
+              if (typeof keys === 'string') {
+                result[keys] = JSON.parse(localStorage.getItem(keys) || 'null');
+              } else if (Array.isArray(keys)) {
+                keys.forEach(key => {
+                  result[key] = JSON.parse(localStorage.getItem(key) || 'null');
+                });
+              }
+              return result;
+            },
+            set: async (items) => {
+              Object.entries(items).forEach(([key, value]) => {
+                localStorage.setItem(key, JSON.stringify(value));
+              });
+            },
+            remove: async (keys) => {
+              if (typeof keys === 'string') {
+                localStorage.removeItem(keys);
+              } else if (Array.isArray(keys)) {
+                keys.forEach(key => localStorage.removeItem(key));
+              }
+            },
+            clear: async () => {
+              localStorage.clear();
+            }
+          }
+        }
+      };
+    }
+  </script>
+  <script type="module">
+    import { StorageManager } from './src/utils/storage.js';
+    import { EventBus } from './src/utils/eventBus.js';
+    import { VisionBoardWidget } from './src/widgets/visionBoard.js';
+    
+    // Initialize immediately since modules load after DOM
+    async function initVisionBoard() {
+      console.log('Initializing Vision Board...');
+      
+      // Check if elements exist
+      const modal = document.getElementById('visionBoardModal');
+      const button = document.getElementById('visionBoardBtn');
+      console.log('Elements found:', { modal: !!modal, button: !!button });
+      
+      // Initialize Vision Board
+      const storage = new StorageManager();
+      const eventBus = new EventBus();
+      
+      const visionBoard = new VisionBoardWidget(null, {
+        id: 'visionBoard',
+        storage: storage,
+        eventBus: eventBus,
+        savedData: {}
+      });
+      
+      await visionBoard.init();
+      
+      console.log('Vision Board test initialized');
+      
+      // Make it globally accessible for debugging
+      window.visionBoard = visionBoard;
+      
+      // Add manual open function for debugging
+      window.openVisionBoard = () => {
+        console.log('Manual open triggered');
+        visionBoard.openModal();
+      };
+      
+      // Debug function to check modal state
+      window.debugModal = () => {
+        const modal = document.getElementById('visionBoardModal');
+        const computed = window.getComputedStyle(modal);
+        console.log('Modal debug info:', {
+          element: modal,
+          display: computed.display,
+          opacity: computed.opacity,
+          visibility: computed.visibility,
+          zIndex: computed.zIndex,
+          position: computed.position,
+          width: computed.width,
+          height: computed.height,
+          backgroundColor: computed.backgroundColor
+        });
+        
+        // Check if it's behind something
+        const rect = modal.getBoundingClientRect();
+        console.log('Modal position:', rect);
+        
+        // Check what's at the center of the screen
+        const centerElement = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
+        console.log('Element at center:', centerElement);
+      };
+    }
+    
+    initVisionBoard();
+  </script>
+  <!-- Move modal outside all containers -->
+  <script>
+    // Move modal to body on load
+    document.addEventListener('DOMContentLoaded', () => {
+      const modal = document.getElementById('visionBoardModal');
+      if (modal && modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+      }
+    });
+  </script>
+</body>
+</html>

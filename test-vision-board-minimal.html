@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minimal Vision Board Test</title>
+  <style>
+    /* Ensure body takes full viewport */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    /* Simple modal styles */
+    #testModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      z-index: 9999;
+    }
+    
+    #testModal.show {
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      width: 90%;
+      height: 90%;
+      max-width: 1200px;
+      max-height: 800px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Minimal Vision Board Test</h1>
+  <button onclick="openTestModal()">Open Test Modal</button>
+  
+  <!-- Modal at body level -->
+  <div id="testModal">
+    <div class="modal-content">
+      <h2>Vision Board Works!</h2>
+      <button onclick="closeTestModal()">Close</button>
+      <br><br>
+      <canvas id="testCanvas" style="border: 1px solid #ccc;"></canvas>
+    </div>
+  </div>
+
+  <script src="src/libs/fabric.min.js"></script>
+  <script>
+    function openTestModal() {
+      console.log('Opening test modal');
+      const modal = document.getElementById('testModal');
+      modal.classList.add('show');
+      
+      // Initialize fabric canvas
+      if (typeof fabric !== 'undefined' && !window.testCanvas) {
+        window.testCanvas = new fabric.Canvas('testCanvas', {
+          width: 600,
+          height: 400,
+          backgroundColor: '#f0f0f0'
+        });
+        
+        // Add test object
+        const rect = new fabric.Rect({
+          left: 50,
+          top: 50,
+          width: 100,
+          height: 100,
+          fill: 'blue'
+        });
+        window.testCanvas.add(rect);
+      }
+    }
+    
+    function closeTestModal() {
+      console.log('Closing test modal');
+      document.getElementById('testModal').classList.remove('show');
+    }
+    
+    // Also test the real vision board
+    setTimeout(() => {
+      console.log('Checking for vision board elements...');
+      const vbModal = document.getElementById('visionBoardModal');
+      const vbBtn = document.getElementById('visionBoardBtn');
+      console.log('Vision Board elements:', { modal: vbModal, button: vbBtn });
+      
+      if (vbModal) {
+        console.log('Modal parent:', vbModal.parentElement);
+        console.log('Modal computed style:', window.getComputedStyle(vbModal));
+      }
+    }, 1000);
+  </script>
+</body>
+</html>
