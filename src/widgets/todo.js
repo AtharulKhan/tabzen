@@ -35,6 +35,7 @@ export class TodoWidget {
             completed: false,
             priority: item.priority || null,
             note: item.note || '',
+            links: item.links || [],
             createdAt: Date.now(),
             order: this.todos.length + index
           });
@@ -57,11 +58,15 @@ export class TodoWidget {
     this.templates = this.savedData.templates || [];
     this.sortMode = this.savedData.sortMode || 'manual';
     
-    // Ensure all todos have an order field
+    // Ensure all todos have an order field and links array
     let needsOrderUpdate = false;
     this.todos.forEach((todo, index) => {
       if (todo.order === undefined) {
         todo.order = index;
+        needsOrderUpdate = true;
+      }
+      if (!todo.links) {
+        todo.links = [];
         needsOrderUpdate = true;
       }
     });
@@ -228,6 +233,40 @@ export class TodoWidget {
           opacity: 1;
           color: #2563eb;
           background: rgba(59, 130, 246, 0.1);
+        }
+        
+        /* Link icon styles */
+        .todo-link-icon {
+          width: 24px;
+          height: 24px;
+          margin-right: 8px;
+          cursor: pointer;
+          color: var(--muted);
+          opacity: 0.5;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 4px;
+          font-size: 16px;
+        }
+        
+        .todo-link-icon:hover {
+          opacity: 1;
+          background: var(--surface-hover);
+          transform: scale(1.1);
+        }
+        
+        .todo-link-icon.has-links {
+          color: #10b981;
+          opacity: 1;
+          font-size: 18px;
+        }
+        
+        .todo-link-icon.has-links:hover {
+          opacity: 1;
+          color: #059669;
+          background: rgba(16, 185, 129, 0.1);
         }
         
         .todo-item:last-child {
@@ -733,6 +772,216 @@ export class TodoWidget {
           margin: 0;
           font-size: 12px;
           color: var(--muted);
+        }
+        
+        /* Link Modal Styles */
+        .todo-link-modal {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 3000;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.2s ease;
+        }
+        
+        .todo-link-modal.show {
+          opacity: 1;
+          pointer-events: auto;
+        }
+        
+        .todo-link-content {
+          background: var(--background);
+          border-radius: 12px;
+          width: 90%;
+          max-width: 500px;
+          max-height: 500px;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .todo-link-header {
+          padding: 20px 24px;
+          border-bottom: 1px solid var(--border);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        
+        .todo-link-title {
+          font-size: 18px;
+          font-weight: 600;
+          margin: 0;
+          color: var(--foreground);
+        }
+        
+        .todo-link-close {
+          width: 32px;
+          height: 32px;
+          border: none;
+          background: transparent;
+          color: var(--muted);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 6px;
+          font-size: 20px;
+          transition: all 0.2s ease;
+        }
+        
+        .todo-link-close:hover {
+          background: var(--surface-hover);
+          color: var(--foreground);
+        }
+        
+        .todo-link-body {
+          flex: 1;
+          padding: 20px 24px;
+          overflow-y: auto;
+        }
+        
+        .todo-link-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          margin-bottom: 16px;
+          max-height: 200px;
+          overflow-y: auto;
+        }
+        
+        .todo-link-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 6px;
+          transition: all 0.2s ease;
+        }
+        
+        .todo-link-item:hover {
+          border-color: var(--primary);
+          background: var(--surface-hover);
+        }
+        
+        .todo-link-url {
+          flex: 1;
+          font-size: 14px;
+          color: var(--primary);
+          text-decoration: none;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        
+        .todo-link-url:hover {
+          text-decoration: underline;
+        }
+        
+        .todo-link-remove {
+          padding: 4px 8px;
+          background: transparent;
+          border: none;
+          color: var(--muted);
+          cursor: pointer;
+          font-size: 16px;
+          line-height: 1;
+          border-radius: 4px;
+          transition: all 0.2s ease;
+        }
+        
+        .todo-link-remove:hover {
+          background: var(--error);
+          color: white;
+        }
+        
+        .todo-link-add-section {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+        
+        .todo-link-input {
+          flex: 1;
+          padding: 8px 12px;
+          font-size: 14px;
+          border: 1px solid var(--border);
+          border-radius: 6px;
+          background: var(--surface);
+          color: var(--foreground);
+        }
+        
+        .todo-link-input:focus {
+          outline: none;
+          border-color: var(--primary);
+        }
+        
+        .todo-link-add-btn {
+          padding: 8px 16px;
+          background: var(--primary);
+          color: white;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          font-weight: 500;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+        }
+        
+        .todo-link-add-btn:hover {
+          background: var(--primary-hover);
+        }
+        
+        .todo-link-footer {
+          padding: 16px 24px;
+          border-top: 1px solid var(--border);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        
+        .todo-link-hint {
+          font-size: 12px;
+          color: var(--muted);
+        }
+        
+        .todo-link-actions {
+          display: flex;
+          gap: 8px;
+        }
+        
+        .todo-link-btn {
+          padding: 8px 16px;
+          border: none;
+          border-radius: 6px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        
+        .todo-link-btn.primary {
+          background: var(--primary);
+          color: white;
+        }
+        
+        .todo-link-btn.primary:hover {
+          background: var(--primary-hover);
+        }
+        
+        .todo-link-btn.secondary {
+          background: var(--surface);
+          color: var(--foreground);
+          border: 1px solid var(--border);
+        }
+        
+        .todo-link-btn.secondary:hover {
+          background: var(--surface-hover);
         }
         
         /* Settings Modal Styles */
@@ -1587,6 +1836,37 @@ export class TodoWidget {
         </div>
       </div>
       
+      <!-- Link Modal -->
+      <div class="todo-link-modal" id="todoLinkModal">
+        <div class="todo-link-content">
+          <div class="todo-link-header">
+            <h3 class="todo-link-title" id="todoLinkTitle">Manage Links</h3>
+            <button class="todo-link-close" id="todoLinkClose">×</button>
+          </div>
+          <div class="todo-link-body">
+            <div class="todo-link-list" id="todoLinkList">
+              <!-- Links will be rendered here -->
+            </div>
+            <div class="todo-link-add-section">
+              <input 
+                type="url" 
+                class="todo-link-input" 
+                id="todoLinkInput"
+                placeholder="Enter URL (e.g., https://example.com)"
+              >
+              <button class="todo-link-add-btn" id="todoLinkAddBtn">Add Link</button>
+            </div>
+          </div>
+          <div class="todo-link-footer">
+            <div class="todo-link-hint">Add links to external resources, documentation, or references</div>
+            <div class="todo-link-actions">
+              <button class="todo-link-btn secondary" id="todoLinkCancel">Cancel</button>
+              <button class="todo-link-btn primary" id="todoLinkSave">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <!-- Settings Modal -->
       <div class="todo-settings-modal" id="todoSettingsModal">
         <div class="todo-settings-content">
@@ -1666,6 +1946,18 @@ export class TodoWidget {
     this.noteSave = todoContainer.querySelector('#todoNoteSave');
     this.currentNoteId = null;
     this.isPreviewMode = false;
+    
+    // Link modal elements
+    this.linkModal = todoContainer.querySelector('#todoLinkModal');
+    this.linkTitle = todoContainer.querySelector('#todoLinkTitle');
+    this.linkClose = todoContainer.querySelector('#todoLinkClose');
+    this.linkList = todoContainer.querySelector('#todoLinkList');
+    this.linkInput = todoContainer.querySelector('#todoLinkInput');
+    this.linkAddBtn = todoContainer.querySelector('#todoLinkAddBtn');
+    this.linkCancel = todoContainer.querySelector('#todoLinkCancel');
+    this.linkSave = todoContainer.querySelector('#todoLinkSave');
+    this.currentLinkId = null;
+    this.tempLinks = [];
     
     // Settings modal elements
     this.settingsModal = todoContainer.querySelector('#todoSettingsModal');
@@ -1765,6 +2057,9 @@ export class TodoWidget {
         <div class="todo-note-icon ${todo.note ? 'has-note' : ''}" title="${todo.note ? 'Edit note' : 'Add note'}">
           ${todo.note ? '📄' : '📝'}
         </div>
+        <div class="todo-link-icon ${todo.links && todo.links.length > 0 ? 'has-links' : ''}" title="${todo.links && todo.links.length > 0 ? `${todo.links.length} link${todo.links.length > 1 ? 's' : ''} (right-click to edit)` : 'Add links'}">
+          ${todo.links && todo.links.length > 0 ? '🔗' : '🔗'}
+        </div>
         <input 
           type="checkbox" 
           class="todo-checkbox" 
@@ -1855,6 +2150,7 @@ export class TodoWidget {
         text: todo.text,
         priority: todo.priority,
         note: todo.note || '',
+        links: todo.links || [],
         completed: false  // Always save as uncompleted in template
       })),
       createdAt: Date.now()
@@ -1882,6 +2178,7 @@ export class TodoWidget {
         completed: false,
         priority: item.priority || null,
         note: item.note || '',
+        links: item.links || [],
         createdAt: Date.now(),
         order: this.todos.length + index
       });
@@ -1985,6 +2282,7 @@ export class TodoWidget {
         completed: false,
         priority: null,
         note: '',
+        links: [],
         createdAt: Date.now(),
         order: Math.max(...this.todos.map(t => t.order || 0), -1) + 1
       };
@@ -2032,6 +2330,13 @@ export class TodoWidget {
       if (e.target.closest('.todo-note-icon')) {
         e.stopPropagation();
         this.openNoteEditor(todoId);
+        return;
+      }
+      
+      // Handle link icon click
+      if (e.target.closest('.todo-link-icon')) {
+        e.stopPropagation();
+        this.handleLinkClick(todoId);
         return;
       }
       
@@ -2089,6 +2394,25 @@ export class TodoWidget {
         document.querySelectorAll('.todo-priority-dropdown.show').forEach(dropdown => {
           dropdown.classList.remove('show');
         });
+      }
+    });
+    
+    // Right-click context menu for link icon
+    this.todoList.addEventListener('contextmenu', (e) => {
+      // Handle right-click on link icon
+      if (e.target.closest('.todo-link-icon')) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const todoItem = e.target.closest('.todo-item');
+        if (!todoItem) return;
+        
+        const todoId = todoItem.dataset.id;
+        const todo = this.todos.find(t => t.id === todoId);
+        if (!todo) return;
+        
+        // Always open link editor on right-click, even with single link
+        this.openLinkEditor(todoId);
       }
     });
     
@@ -2451,6 +2775,51 @@ export class TodoWidget {
         this.closeNoteEditor();
       }
     });
+    
+    // Link modal event handlers
+    this.linkClose.addEventListener('click', () => {
+      this.closeLinkEditor();
+    });
+    
+    this.linkCancel.addEventListener('click', () => {
+      this.closeLinkEditor();
+    });
+    
+    this.linkSave.addEventListener('click', () => {
+      this.saveLinks();
+    });
+    
+    this.linkAddBtn.addEventListener('click', () => {
+      this.addLinkToList();
+    });
+    
+    // Allow Enter key to add link
+    this.linkInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        this.addLinkToList();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        this.closeLinkEditor();
+      }
+    });
+    
+    // Close link modal on background click
+    this.linkModal.addEventListener('click', (e) => {
+      if (e.target === this.linkModal) {
+        this.closeLinkEditor();
+      }
+    });
+    
+    // Handle link removal from list
+    this.linkList.addEventListener('click', (e) => {
+      if (e.target.closest('.todo-link-remove')) {
+        const linkItem = e.target.closest('.todo-link-item');
+        const index = Array.from(linkItem.parentNode.children).indexOf(linkItem);
+        this.tempLinks.splice(index, 1);
+        linkItem.remove();
+      }
+    });
   }
   
   escapeHtml(text) {
@@ -2671,6 +3040,116 @@ export class TodoWidget {
       // Focus back on textarea when exiting preview
       this.noteTextarea.focus();
     }
+  }
+  
+  // Link management methods
+  handleLinkClick(todoId) {
+    const todo = this.todos.find(t => t.id === todoId);
+    if (!todo) return;
+    
+    // If only one link, open it directly
+    if (todo.links && todo.links.length === 1) {
+      chrome.tabs.create({ url: todo.links[0] });
+      return;
+    }
+    
+    // Otherwise, open the link management modal
+    this.openLinkEditor(todoId);
+  }
+  
+  openLinkEditor(todoId) {
+    const todo = this.todos.find(t => t.id === todoId);
+    if (!todo) return;
+    
+    this.currentLinkId = todoId;
+    this.tempLinks = [...(todo.links || [])];
+    this.linkTitle.textContent = `Links for: ${todo.text.substring(0, 50)}${todo.text.length > 50 ? '...' : ''}`;
+    
+    // Render existing links
+    this.renderLinkList();
+    
+    // Clear input
+    this.linkInput.value = '';
+    
+    // Show modal
+    this.linkModal.classList.add('show');
+    this.linkInput.focus();
+  }
+  
+  closeLinkEditor() {
+    this.linkModal.classList.remove('show');
+    this.currentLinkId = null;
+    this.tempLinks = [];
+    this.linkInput.value = '';
+    this.linkList.innerHTML = '';
+  }
+  
+  renderLinkList() {
+    this.linkList.innerHTML = '';
+    
+    if (this.tempLinks.length === 0) {
+      this.linkList.innerHTML = '<div style="text-align: center; color: var(--muted); padding: 20px;">No links added yet</div>';
+      return;
+    }
+    
+    this.tempLinks.forEach((link, index) => {
+      const linkItem = document.createElement('div');
+      linkItem.className = 'todo-link-item';
+      
+      // Extract domain for display
+      let displayUrl = link;
+      try {
+        const url = new URL(link);
+        displayUrl = url.hostname + (url.pathname !== '/' ? url.pathname : '');
+      } catch (e) {
+        // If URL parsing fails, just use the original
+      }
+      
+      linkItem.innerHTML = `
+        <a href="${link}" class="todo-link-url" target="_blank" title="${link}">
+          ${displayUrl}
+        </a>
+        <button class="todo-link-remove" title="Remove link">×</button>
+      `;
+      
+      this.linkList.appendChild(linkItem);
+    });
+  }
+  
+  addLinkToList() {
+    const url = this.linkInput.value.trim();
+    if (!url) return;
+    
+    // Basic URL validation
+    try {
+      // If no protocol, add https://
+      let validUrl = url;
+      if (!url.match(/^https?:\/\//)) {
+        validUrl = 'https://' + url;
+      }
+      new URL(validUrl); // This will throw if invalid
+      
+      // Add to temporary list
+      this.tempLinks.push(validUrl);
+      this.renderLinkList();
+      this.linkInput.value = '';
+      this.linkInput.focus();
+    } catch (e) {
+      alert('Please enter a valid URL');
+      this.linkInput.focus();
+    }
+  }
+  
+  saveLinks() {
+    if (!this.currentLinkId) return;
+    
+    const todo = this.todos.find(t => t.id === this.currentLinkId);
+    if (!todo) return;
+    
+    todo.links = [...this.tempLinks];
+    this.saveState();
+    this.renderTodos();
+    this.closeLinkEditor();
   }
   
   destroy() {

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Todo Link Feature</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .pass {
+            background: #d4f8d4;
+            color: #2e7d2e;
+        }
+        .fail {
+            background: #f8d4d4;
+            color: #7d2e2e;
+        }
+        .info {
+            background: #d4e8f8;
+            color: #2e5d7d;
+        }
+        code {
+            background: #e8e8e8;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TabZen Todo Link Feature Test</h1>
+        
+        <div class="test-section">
+            <h2>Feature Summary</h2>
+            <div class="test-result info">
+                <strong>What's been implemented:</strong>
+                <ul>
+                    <li>✅ Added <code>links</code> array to todo data structure</li>
+                    <li>✅ Migration for existing todos to add empty links array</li>
+                    <li>✅ Link icon (🔗) appears next to note icon</li>
+                    <li>✅ Link icon changes color when todo has links</li>
+                    <li>✅ Click on link icon with 1 link opens it directly</li>
+                    <li>✅ Click on link icon with 0 or multiple links opens modal</li>
+                    <li>✅ Modal to manage multiple links per todo</li>
+                    <li>✅ Add/remove links functionality</li>
+                    <li>✅ URL validation (auto-adds https:// if missing)</li>
+                    <li>✅ Links included in todo templates</li>
+                    <li>✅ Links automatically included in data exports</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>User Interface</h2>
+            <div class="test-result info">
+                <strong>Link Icon Behavior:</strong>
+                <ul>
+                    <li>Empty link icon (🔗) - faded, no links</li>
+                    <li>Filled link icon (🔗) - green color, has links</li>
+                    <li>Hover shows tooltip with link count</li>
+                    <li><strong>NEW:</strong> Right-click always opens edit modal (even with single link)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>How to Test</h2>
+            <div class="test-result info">
+                <ol>
+                    <li><strong>Load the extension:</strong> Go to chrome://extensions and reload TabZen</li>
+                    <li><strong>Create a todo:</strong> Add a new todo item</li>
+                    <li><strong>Add a single link:</strong>
+                        <ul>
+                            <li>Click the link icon (🔗)</li>
+                            <li>Enter a URL (e.g., "github.com")</li>
+                            <li>Click "Add Link"</li>
+                            <li>Click "Save"</li>
+                        </ul>
+                    </li>
+                    <li><strong>Test single link:</strong> 
+                        <ul>
+                            <li>Left-click the link icon - it should open the link directly</li>
+                            <li>Right-click the link icon - it should open the edit modal</li>
+                        </ul>
+                    </li>
+                    <li><strong>Add multiple links:</strong>
+                        <ul>
+                            <li>Click the link icon again</li>
+                            <li>Add more URLs</li>
+                            <li>Click "Save"</li>
+                        </ul>
+                    </li>
+                    <li><strong>Test multiple links:</strong> Click the link icon - it should open the modal</li>
+                    <li><strong>Export data:</strong> Go to settings and export - links should be included in the JSON</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Expected Export Format</h2>
+            <div class="test-result info">
+                <pre><code>{
+  "todos": [
+    {
+      "id": "1234567890",
+      "text": "Research project documentation",
+      "completed": false,
+      "priority": "high",
+      "note": "Important project notes",
+      "links": [
+        "https://github.com/project/docs",
+        "https://example.com/api-reference",
+        "https://stackoverflow.com/questions/12345"
+      ],
+      "createdAt": 1234567890,
+      "order": 0
+    }
+  ]
+}</code></pre>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Technical Details</h2>
+            <div class="test-result info">
+                <strong>Files Modified:</strong>
+                <ul>
+                    <li><code>src/widgets/todo.js</code> - All changes in this file</li>
+                </ul>
+                <strong>Key Methods Added:</strong>
+                <ul>
+                    <li><code>handleLinkClick()</code> - Handles link icon clicks</li>
+                    <li><code>openLinkEditor()</code> - Opens link management modal</li>
+                    <li><code>renderLinkList()</code> - Renders links in modal</li>
+                    <li><code>addLinkToList()</code> - Adds new link with validation</li>
+                    <li><code>saveLinks()</code> - Saves links to todo</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
