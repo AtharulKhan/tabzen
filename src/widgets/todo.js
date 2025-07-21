@@ -11,6 +11,9 @@ export class TodoWidget {
     this.todos = [];
     this.templates = [];
     this.showTemplateMenu = false;
+    this.sortMode = this.savedData.sortMode || 'manual';
+    this.draggedItem = null;
+    this.draggedTodoId = null;
   }
   
   async init() {
@@ -25,13 +28,14 @@ export class TodoWidget {
       try {
         const templateData = JSON.parse(pendingTemplate);
         // Apply template items to this new widget
-        templateData.templateItems.forEach(item => {
+        templateData.templateItems.forEach((item, index) => {
           this.todos.push({
             id: Date.now().toString() + Math.random(),
             text: item.text,
             completed: false,
             priority: item.priority || null,
-            createdAt: Date.now()
+            createdAt: Date.now(),
+            order: this.todos.length + index
           });
         });
         
@@ -50,6 +54,20 @@ export class TodoWidget {
   async loadState() {
     this.todos = this.savedData.todos || [];
     this.templates = this.savedData.templates || [];
+    this.sortMode = this.savedData.sortMode || 'manual';
+    
+    // Ensure all todos have an order field
+    let needsOrderUpdate = false;
+    this.todos.forEach((todo, index) => {
+      if (todo.order === undefined) {
+        todo.order = index;
+        needsOrderUpdate = true;
+      }
+    });
+    
+    if (needsOrderUpdate) {
+      await this.saveState();
+    }
     
     // Also load templates from standalone storage (created in main settings)
     try {
@@ -73,7 +91,8 @@ export class TodoWidget {
     const widgetTemplates = this.savedData.templates || [];
     await this.storage.saveWidget(this.id, {
       todos: this.todos,
-      templates: widgetTemplates
+      templates: widgetTemplates,
+      sortMode: this.sortMode
     });
   }
   
@@ -269,6 +288,45 @@ export class TodoWidget {
           color: white;
         }
         
+        /* Drag and drop styles */
+        .todo-item.draggable {
+          cursor: move;
+        }
+        
+        .todo-item.dragging {
+          opacity: 0.5;
+          cursor: grabbing;
+        }
+        
+        .todo-item.drag-over {
+          border-top: 2px solid var(--primary);
+        }
+        
+        .todo-drag-handle {
+          position: absolute;
+          left: -20px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 16px;
+          height: 16px;
+          cursor: grab;
+          color: var(--muted);
+          opacity: 0;
+          transition: opacity 0.2s ease;
+        }
+        
+        .todo-item:hover .todo-drag-handle {
+          opacity: 0.6;
+        }
+        
+        .todo-drag-handle:hover {
+          opacity: 1 !important;
+        }
+        
+        .todo-item.dragging .todo-drag-handle {
+          cursor: grabbing;
+        }
+        
         .todo-stats {
           display: flex;
           justify-content: space-between;
@@ -345,6 +403,78 @@ export class TodoWidget {
         .todo-template-btn:hover {
           background: var(--primary);
           color: white;
+        }
+        
+        /* Sort button and dropdown styles */
+        .todo-sort-btn {
+          width: 32px;
+          height: 32px;
+          border: none;
+          background: var(--surface-hover);
+          color: var(--muted);
+          border-radius: 6px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+          position: relative;
+        }
+        
+        .todo-sort-btn:hover {
+          background: var(--primary);
+          color: white;
+        }
+        
+        .todo-sort-dropdown {
+          position: absolute;
+          top: 100%;
+          right: 0;
+          margin-top: 4px;
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+          min-width: 200px;
+          z-index: 1000;
+          opacity: 0;
+          transform: translateY(-10px);
+          pointer-events: none;
+          transition: all 0.2s ease;
+          padding: 4px;
+        }
+        
+        .todo-sort-dropdown.show {
+          opacity: 1;
+          transform: translateY(0);
+          pointer-events: auto;
+        }
+        
+        .sort-option {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 8px 12px;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: background 0.2s ease;
+          font-size: 14px;
+        }
+        
+        .sort-option:hover {
+          background: var(--surface-hover);
+        }
+        
+        .sort-option.active {
+          background: var(--surface-hover);
+          color: var(--primary);
+          font-weight: 500;
+        }
+        
+        .sort-option svg {
+          width: 16px;
+          height: 16px;
+          flex-shrink: 0;
         }
         
         .template-dropdown {
@@ -977,6 +1107,49 @@ export class TodoWidget {
           </svg>
         </button>
         <div style="position: relative;">
+          <button class="todo-sort-btn" id="todoSortBtn" title="Sort tasks">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 6h18M7 12h10M11 18h2"></path>
+            </svg>
+          </button>
+          <div class="todo-sort-dropdown" id="todoSortDropdown">
+            <div class="sort-option ${this.sortMode === 'manual' ? 'active' : ''}" data-sort="manual">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="5" r="1"></circle>
+                <circle cx="12" cy="12" r="1"></circle>
+                <circle cx="12" cy="19" r="1"></circle>
+                <circle cx="7" cy="5" r="1"></circle>
+                <circle cx="7" cy="12" r="1"></circle>
+                <circle cx="7" cy="19" r="1"></circle>
+              </svg>
+              Manual (Drag & Drop)
+            </div>
+            <div class="sort-option ${this.sortMode === 'priority' ? 'active' : ''}" data-sort="priority">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+              </svg>
+              Priority
+            </div>
+            <div class="sort-option ${this.sortMode === 'date' ? 'active' : ''}" data-sort="date">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              Date Created
+            </div>
+            <div class="sort-option ${this.sortMode === 'name' ? 'active' : ''}" data-sort="name">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="15" y2="18"></line>
+              </svg>
+              Name (A-Z)
+            </div>
+          </div>
+        </div>
+        <div style="position: relative;">
           <button class="todo-template-btn" id="todoTemplateBtn" title="Checklist templates">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -1105,6 +1278,8 @@ export class TodoWidget {
     this.todoCount = todoContainer.querySelector('#todoCount');
     this.filterButtons = todoContainer.querySelectorAll('.todo-filter button');
     this.todoCopyBtn = todoContainer.querySelector('#todoCopyBtn');
+    this.todoSortBtn = todoContainer.querySelector('#todoSortBtn');
+    this.todoSortDropdown = todoContainer.querySelector('#todoSortDropdown');
     
     // Template elements
     this.templateBtn = todoContainer.querySelector('#todoTemplateBtn');
@@ -1157,15 +1332,36 @@ export class TodoWidget {
       return;
     }
     
-    filteredTodos.forEach(todo => {
+    // Sort todos based on current sort mode
+    const sortedTodos = this.sortTodos(filteredTodos);
+    
+    sortedTodos.forEach((todo, index) => {
       const li = document.createElement('li');
       const priorityClass = todo.priority ? `priority-${todo.priority}` : '';
-      li.className = `todo-item ${todo.completed ? 'completed' : ''} ${priorityClass}`;
+      const draggableClass = this.sortMode === 'manual' ? 'draggable' : '';
+      li.className = `todo-item ${todo.completed ? 'completed' : ''} ${priorityClass} ${draggableClass}`;
       li.dataset.id = todo.id;
+      li.dataset.index = index;
+      
+      if (this.sortMode === 'manual') {
+        li.draggable = true;
+      }
       
       const priorityInfo = this.getPriorityInfo(todo.priority);
       
       li.innerHTML = `
+        ${this.sortMode === 'manual' ? `
+          <div class="todo-drag-handle">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="5" r="1"></circle>
+              <circle cx="12" cy="12" r="1"></circle>
+              <circle cx="12" cy="19" r="1"></circle>
+              <circle cx="7" cy="5" r="1"></circle>
+              <circle cx="7" cy="12" r="1"></circle>
+              <circle cx="7" cy="19" r="1"></circle>
+            </svg>
+          </div>
+        ` : ''}
         <div class="todo-priority">
           <div class="todo-priority-indicator ${priorityInfo.class}" title="Set priority">
             ${priorityInfo.label}
@@ -1214,6 +1410,33 @@ export class TodoWidget {
     
     // Update completed count in settings
     this.updateCompletedCount();
+  }
+  
+  sortTodos(todos) {
+    const sorted = [...todos];
+    
+    switch (this.sortMode) {
+      case 'manual':
+        return sorted.sort((a, b) => (a.order || 0) - (b.order || 0));
+        
+      case 'priority':
+        const priorityOrder = { 'very-high': 0, 'high': 1, 'medium': 2, 'low': 3, null: 4 };
+        return sorted.sort((a, b) => {
+          const aPriority = priorityOrder[a.priority];
+          const bPriority = priorityOrder[b.priority];
+          if (aPriority !== bPriority) return aPriority - bPriority;
+          return (a.order || 0) - (b.order || 0); // Maintain manual order for same priority
+        });
+        
+      case 'date':
+        return sorted.sort((a, b) => b.createdAt - a.createdAt);
+        
+      case 'name':
+        return sorted.sort((a, b) => a.text.localeCompare(b.text));
+        
+      default:
+        return sorted;
+    }
   }
   
   renderTemplates() {
@@ -1275,13 +1498,14 @@ export class TodoWidget {
     }
     
     // Add template items
-    template.items.forEach(item => {
+    template.items.forEach((item, index) => {
       this.todos.push({
         id: Date.now().toString() + Math.random(),
         text: item.text,
         completed: false,
         priority: item.priority || null,
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        order: this.todos.length + index
       });
     });
     
@@ -1382,7 +1606,8 @@ export class TodoWidget {
         text,
         completed: false,
         priority: null,
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        order: Math.max(...this.todos.map(t => t.order || 0), -1) + 1
       };
       
       this.todos.unshift(todo);
@@ -1520,6 +1745,26 @@ export class TodoWidget {
       });
     });
     
+    // Sort button toggle
+    this.todoSortBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.todoSortDropdown.classList.toggle('show');
+    });
+    
+    // Sort option selection
+    this.todoSortDropdown.addEventListener('click', (e) => {
+      const option = e.target.closest('.sort-option');
+      if (option) {
+        const newSortMode = option.dataset.sort;
+        if (newSortMode !== this.sortMode) {
+          this.sortMode = newSortMode;
+          this.saveState();
+          this.renderTodos();
+        }
+        this.todoSortDropdown.classList.remove('show');
+      }
+    });
+    
     // Template button toggle
     this.templateBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1533,7 +1778,18 @@ export class TodoWidget {
         this.showTemplateMenu = false;
         this.templateDropdown.classList.remove('show');
       }
+      if (!this.todoSortBtn.contains(e.target) && !this.todoSortDropdown.contains(e.target)) {
+        this.todoSortDropdown.classList.remove('show');
+      }
     });
+    
+    // Drag and drop handlers
+    this.todoList.addEventListener('dragstart', this.handleDragStart.bind(this));
+    this.todoList.addEventListener('dragend', this.handleDragEnd.bind(this));
+    this.todoList.addEventListener('dragover', this.handleDragOver.bind(this));
+    this.todoList.addEventListener('drop', this.handleDrop.bind(this));
+    this.todoList.addEventListener('dragenter', this.handleDragEnter.bind(this));
+    this.todoList.addEventListener('dragleave', this.handleDragLeave.bind(this));
     
     // Save as template
     this.saveAsTemplateBtn.addEventListener('click', () => {
@@ -1852,6 +2108,100 @@ export class TodoWidget {
   
   destroy() {
     // Clean up if needed
+  }
+
+  // Drag and drop handlers
+  handleDragStart(e) {
+    const todoItem = e.target.closest('.todo-item');
+    if (!todoItem || this.sortMode !== 'manual') return;
+    
+    this.draggedItem = todoItem;
+    this.draggedTodoId = todoItem.dataset.id;
+    todoItem.classList.add('dragging');
+    
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', todoItem.innerHTML);
+  }
+
+  handleDragEnd(e) {
+    if (!this.draggedItem) return;
+    
+    this.draggedItem.classList.remove('dragging');
+    
+    // Remove all drag-over classes
+    this.todoList.querySelectorAll('.todo-item').forEach(item => {
+      item.classList.remove('drag-over');
+    });
+    
+    this.draggedItem = null;
+    this.draggedTodoId = null;
+  }
+
+  handleDragOver(e) {
+    if (!this.draggedItem || this.sortMode !== 'manual') return;
+    
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    const afterElement = this.getDragAfterElement(e.clientY);
+    
+    if (afterElement == null) {
+      this.todoList.appendChild(this.draggedItem);
+    } else {
+      this.todoList.insertBefore(this.draggedItem, afterElement);
+    }
+  }
+
+  handleDrop(e) {
+    if (!this.draggedItem || this.sortMode !== 'manual') return;
+    
+    e.preventDefault();
+    
+    // Get new order from DOM
+    const todoItems = Array.from(this.todoList.querySelectorAll('.todo-item'));
+    todoItems.forEach((item, index) => {
+      const todoId = item.dataset.id;
+      const todo = this.todos.find(t => t.id === todoId);
+      if (todo) {
+        todo.order = index;
+      }
+    });
+    
+    // Save the new order
+    this.saveState();
+  }
+
+  handleDragEnter(e) {
+    const todoItem = e.target.closest('.todo-item');
+    if (!todoItem || todoItem === this.draggedItem || this.sortMode !== 'manual') return;
+    
+    todoItem.classList.add('drag-over');
+  }
+
+  handleDragLeave(e) {
+    const todoItem = e.target.closest('.todo-item');
+    if (!todoItem) return;
+    
+    // Check if we're actually leaving the todo item
+    const relatedTarget = e.relatedTarget;
+    if (relatedTarget && todoItem.contains(relatedTarget)) return;
+    
+    todoItem.classList.remove('drag-over');
+  }
+
+  getDragAfterElement(y) {
+    const draggableElements = [...this.todoList.querySelectorAll('.todo-item:not(.dragging)')];
+    
+    return draggableElements.reduce((closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      
+      if (offset < 0 && offset > closest.offset) {
+        return { offset: offset, element: child };
+      } else {
+        return closest;
+      }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
   }
 
   registerCommands() {
