@@ -76,7 +76,8 @@ export class WidgetManager {
       widgetElement.dataset.widgetId = widgetId;
       widgetElement.dataset.widgetType = type;
       widgetElement.dataset.widgetSize = savedSize;
-      widgetElement.draggable = true;
+      // Remove draggable for arrow navigation
+      // widgetElement.draggable = true;
       
       // Create widget header
       const header = document.createElement('div');

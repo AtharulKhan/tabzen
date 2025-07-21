@@ -5,7 +5,7 @@ import { EventBus, Events } from '../utils/eventBus.js';
 import { SpaceManager } from '../utils/spaceManager.js';
 import { WidgetManager } from '../utils/widgetManager.js';
 import { ThemeManager } from '../utils/theme.js';
-import { DragAndDrop } from '../utils/dragAndDrop.js';
+import { ArrowNavigation } from '../utils/arrowNavigation.js';
 import { BookmarksManager } from '../utils/bookmarks.js';
 import { WidgetResize } from '../utils/widgetResize.js';
 import { CommandPalette } from '../utils/commandPalette.js';
@@ -34,7 +34,7 @@ class TabZenApp {
     this.bookmarksManager = new BookmarksManager();
     this.commandPalette = null;
     this.commandRegistry = null;
-    this.dragAndDrop = null;
+    this.arrowNavigation = null;
     this.widgetResize = null;
     this.scratchpad = null;
     this.miniQuickLinks = null;
@@ -154,8 +154,8 @@ class TabZenApp {
       // Load widgets for current space
       await this.widgetManager.loadWidgets(this.elements.widgetGrid);
       
-      // Initialize drag and drop
-      this.initDragAndDrop();
+      // Initialize arrow navigation
+      this.initArrowNavigation();
       
       // Initialize resize
       this.initResize();
@@ -166,7 +166,7 @@ class TabZenApp {
       // Listen for space switches
       this.eventBus.on('space:switched', async () => {
         await this.widgetManager.loadWidgets(this.elements.widgetGrid);
-        this.initDragAndDrop();
+        this.initArrowNavigation();
         this.initResize();
         this.renderSpaceTabs(); // Update active tab indicator
       });
@@ -638,22 +638,16 @@ class TabZenApp {
     setInterval(() => this.updateGreeting(), 60000);
   }
   
-  initDragAndDrop() {
-    this.dragAndDrop = new DragAndDrop(this.elements.widgetGrid, {
+  initArrowNavigation() {
+    this.arrowNavigation = new ArrowNavigation(this.elements.widgetGrid, {
       onReorder: async (newOrder) => {
         await this.widgetManager.updateWidgetOrder(newOrder);
       }
     });
     
-    this.dragAndDrop.init();
+    this.arrowNavigation.init();
     
-    // Listen for widget additions to make them draggable
-    this.eventBus.on(Events.WIDGET_ADD, ({ widgetId }) => {
-      const widgetElement = document.querySelector(`[data-widget-id="${widgetId}"]`);
-      if (widgetElement) {
-        this.dragAndDrop.makeWidgetDraggable(widgetElement);
-      }
-    });
+    // Arrow navigation will automatically handle new widgets through mutation observer
   }
   
   initResize() {
