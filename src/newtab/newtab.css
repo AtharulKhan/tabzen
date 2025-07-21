@@ -335,7 +335,7 @@ body {
   box-shadow: var(--shadow-md);
   transition: all var(--transition-base);
   animation: scaleIn var(--transition-slow) ease-out;
-  min-height: 180px;
+  min-height: 300px;
   display: flex;
   flex-direction: column;
   position: relative;

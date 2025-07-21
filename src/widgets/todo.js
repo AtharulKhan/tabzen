@@ -30,6 +30,7 @@ export class TodoWidget {
             id: Date.now().toString() + Math.random(),
             text: item.text,
             completed: false,
+            priority: item.priority || null,
             createdAt: Date.now()
           });
         });
@@ -85,6 +86,8 @@ export class TodoWidget {
           display: flex;
           flex-direction: column;
           height: 100%;
+          position: relative;
+          overflow: visible;
         }
         
         .todo-controls {
@@ -153,17 +156,24 @@ export class TodoWidget {
         .todo-list {
           flex: 1;
           overflow-y: auto;
+          overflow-x: visible;
           margin: 0;
-          padding: 0;
+          padding: 0 0 40px 0; /* Add bottom padding for dropdown space */
           list-style: none;
+          position: relative;
+          min-height: 150px; /* Ensures space for at least 4-5 todo items */
         }
         
         .todo-item {
           display: flex;
           align-items: center;
-          padding: 10px 0;
+          padding: 10px 8px;
           border-bottom: 1px solid var(--border);
-          transition: opacity 0.2s ease;
+          transition: all 0.2s ease;
+          border-radius: 6px;
+          margin-bottom: 4px;
+          position: relative;
+          overflow: visible;
         }
         
         .todo-item:last-child {
@@ -172,6 +182,40 @@ export class TodoWidget {
         
         .todo-item.completed {
           opacity: 0.6;
+        }
+        
+        /* Priority colors */
+        .todo-item.priority-very-high {
+          background: rgba(239, 68, 68, 0.1);
+        }
+        
+        .todo-item.priority-high {
+          background: rgba(251, 146, 60, 0.1);
+        }
+        
+        .todo-item.priority-medium {
+          background: rgba(250, 204, 21, 0.1);
+        }
+        
+        .todo-item.priority-low {
+          background: rgba(59, 130, 246, 0.1);
+        }
+        
+        /* Dark theme priority colors */
+        [data-theme="dark"] .todo-item.priority-very-high {
+          background: rgba(239, 68, 68, 0.15);
+        }
+        
+        [data-theme="dark"] .todo-item.priority-high {
+          background: rgba(251, 146, 60, 0.15);
+        }
+        
+        [data-theme="dark"] .todo-item.priority-medium {
+          background: rgba(250, 204, 21, 0.15);
+        }
+        
+        [data-theme="dark"] .todo-item.priority-low {
+          background: rgba(59, 130, 246, 0.15);
         }
         
         .todo-checkbox {
@@ -190,6 +234,7 @@ export class TodoWidget {
           padding: 2px 4px;
           border-radius: 4px;
           transition: background 0.2s ease;
+          margin-right: 8px;
         }
         
         .todo-item.completed .todo-text {
@@ -731,6 +776,127 @@ export class TodoWidget {
           color: var(--muted);
         }
         
+        /* Priority selector styles */
+        .todo-priority {
+          position: relative;
+          margin-right: 8px;
+        }
+        
+        .todo-priority-indicator {
+          width: 24px;
+          height: 24px;
+          border-radius: 4px;
+          border: 1px solid var(--border);
+          background: var(--surface);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 12px;
+          font-weight: 600;
+          transition: all 0.2s ease;
+        }
+        
+        .todo-priority-indicator:hover {
+          border-color: var(--primary);
+          transform: scale(1.1);
+        }
+        
+        .todo-priority-indicator.very-high {
+          background: rgb(239, 68, 68);
+          color: white;
+          border-color: rgb(239, 68, 68);
+        }
+        
+        .todo-priority-indicator.high {
+          background: rgb(251, 146, 60);
+          color: white;
+          border-color: rgb(251, 146, 60);
+        }
+        
+        .todo-priority-indicator.medium {
+          background: rgb(250, 204, 21);
+          color: rgb(92, 77, 8);
+          border-color: rgb(250, 204, 21);
+        }
+        
+        .todo-priority-indicator.low {
+          background: rgb(59, 130, 246);
+          color: white;
+          border-color: rgb(59, 130, 246);
+        }
+        
+        .todo-priority-dropdown {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          margin-top: 4px;
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+          min-width: 150px;
+          z-index: 10000;
+          opacity: 0;
+          transform: translateY(-10px);
+          pointer-events: none;
+          transition: all 0.2s ease;
+          padding: 4px;
+        }
+        
+        .todo-priority-dropdown.show {
+          opacity: 1;
+          transform: translateY(0);
+          pointer-events: auto;
+        }
+        
+        .todo-priority-option {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 14px;
+          transition: background 0.2s ease;
+        }
+        
+        .todo-priority-option:hover {
+          background: var(--surface-hover);
+        }
+        
+        .todo-priority-option.selected {
+          background: var(--surface-hover);
+          font-weight: 500;
+        }
+        
+        .todo-priority-dot {
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+        
+        .todo-priority-dot.very-high {
+          background: rgb(239, 68, 68);
+        }
+        
+        .todo-priority-dot.high {
+          background: rgb(251, 146, 60);
+        }
+        
+        .todo-priority-dot.medium {
+          background: rgb(250, 204, 21);
+        }
+        
+        .todo-priority-dot.low {
+          background: rgb(59, 130, 246);
+        }
+        
+        .todo-priority-dot.none {
+          background: var(--muted);
+        }
+        
         .task-management-section {
           display: flex;
           flex-direction: column;
@@ -781,6 +947,16 @@ export class TodoWidget {
         .task-management-btn:disabled {
           opacity: 0.5;
           cursor: not-allowed;
+        }
+      </style>
+      <style>
+        /* Override widget overflow for priority dropdown */
+        .widget:has(.todo-widget) {
+          overflow: visible !important;
+        }
+        
+        .widget-content:has(.todo-widget) {
+          overflow: visible !important;
         }
       </style>
       
@@ -956,7 +1132,13 @@ export class TodoWidget {
     this.renderTemplates();
   }
   
-  renderTodos(filter = 'all') {
+  renderTodos(filter = null) {
+    // Use current filter if not specified
+    if (!filter) {
+      const activeFilter = this.container.querySelector('.todo-filter button.active');
+      filter = activeFilter ? activeFilter.dataset.filter : 'all';
+    }
+    
     this.todoList.innerHTML = '';
     
     let filteredTodos = this.todos;
@@ -977,10 +1159,40 @@ export class TodoWidget {
     
     filteredTodos.forEach(todo => {
       const li = document.createElement('li');
-      li.className = `todo-item ${todo.completed ? 'completed' : ''}`;
+      const priorityClass = todo.priority ? `priority-${todo.priority}` : '';
+      li.className = `todo-item ${todo.completed ? 'completed' : ''} ${priorityClass}`;
       li.dataset.id = todo.id;
       
+      const priorityInfo = this.getPriorityInfo(todo.priority);
+      
       li.innerHTML = `
+        <div class="todo-priority">
+          <div class="todo-priority-indicator ${priorityInfo.class}" title="Set priority">
+            ${priorityInfo.label}
+          </div>
+          <div class="todo-priority-dropdown">
+            <div class="todo-priority-option ${!todo.priority ? 'selected' : ''}" data-priority="">
+              <div class="todo-priority-dot none"></div>
+              <span>No Priority</span>
+            </div>
+            <div class="todo-priority-option ${todo.priority === 'low' ? 'selected' : ''}" data-priority="low">
+              <div class="todo-priority-dot low"></div>
+              <span>Low</span>
+            </div>
+            <div class="todo-priority-option ${todo.priority === 'medium' ? 'selected' : ''}" data-priority="medium">
+              <div class="todo-priority-dot medium"></div>
+              <span>Medium</span>
+            </div>
+            <div class="todo-priority-option ${todo.priority === 'high' ? 'selected' : ''}" data-priority="high">
+              <div class="todo-priority-dot high"></div>
+              <span>High</span>
+            </div>
+            <div class="todo-priority-option ${todo.priority === 'very-high' ? 'selected' : ''}" data-priority="very-high">
+              <div class="todo-priority-dot very-high"></div>
+              <span>Very High</span>
+            </div>
+          </div>
+        </div>
         <input 
           type="checkbox" 
           class="todo-checkbox" 
@@ -1042,6 +1254,7 @@ export class TodoWidget {
       name: name.trim(),
       items: this.todos.map(todo => ({
         text: todo.text,
+        priority: todo.priority,
         completed: false  // Always save as uncompleted in template
       })),
       createdAt: Date.now()
@@ -1067,6 +1280,7 @@ export class TodoWidget {
         id: Date.now().toString() + Math.random(),
         text: item.text,
         completed: false,
+        priority: item.priority || null,
         createdAt: Date.now()
       });
     });
@@ -1167,6 +1381,7 @@ export class TodoWidget {
         id: Date.now().toString(),
         text,
         completed: false,
+        priority: null,
         createdAt: Date.now()
       };
       
@@ -1209,6 +1424,39 @@ export class TodoWidget {
         return;
       }
       
+      // Toggle priority dropdown
+      if (e.target.closest('.todo-priority-indicator')) {
+        e.stopPropagation();
+        const indicator = e.target.closest('.todo-priority-indicator');
+        const dropdown = todoItem.querySelector('.todo-priority-dropdown');
+        const isOpen = dropdown.classList.contains('show');
+        
+        // Close all other dropdowns
+        document.querySelectorAll('.todo-priority-dropdown.show').forEach(d => {
+          d.classList.remove('show');
+        });
+        
+        // Toggle this dropdown
+        dropdown.classList.toggle('show', !isOpen);
+        return;
+      }
+      
+      // Handle priority selection
+      if (e.target.closest('.todo-priority-option')) {
+        e.stopPropagation();
+        const option = e.target.closest('.todo-priority-option');
+        const newPriority = option.dataset.priority || null;
+        
+        todo.priority = newPriority;
+        this.saveState();
+        this.renderTodos();
+        
+        // Close dropdown
+        const dropdown = todoItem.querySelector('.todo-priority-dropdown');
+        dropdown.classList.remove('show');
+        return;
+      }
+      
       // Toggle checkbox
       if (e.target.classList.contains('todo-checkbox')) {
         todo.completed = e.target.checked;
@@ -1221,6 +1469,15 @@ export class TodoWidget {
         this.todos = this.todos.filter(t => t.id !== todoId);
         this.saveState();
         this.renderTodos();
+      }
+    });
+    
+    // Close priority dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.todo-priority')) {
+        document.querySelectorAll('.todo-priority-dropdown.show').forEach(dropdown => {
+          dropdown.classList.remove('show');
+        });
       }
     });
     
@@ -1518,6 +1775,17 @@ export class TodoWidget {
     div.textContent = text;
     return div.innerHTML;
   }
+  
+  getPriorityInfo(priority) {
+    const priorities = {
+      'very-high': { label: 'VH', class: 'very-high' },
+      'high': { label: 'H', class: 'high' },
+      'medium': { label: 'M', class: 'medium' },
+      'low': { label: 'L', class: 'low' }
+    };
+    
+    return priorities[priority] || { label: '', class: '' };
+  }
 
   linkifyText(text) {
     // Escape HTML first
@@ -1534,8 +1802,9 @@ export class TodoWidget {
 
   copyAllTasks() {
     const todoTexts = this.todos.map((todo, index) => {
-      // Format as simple bullet points without status circles
-      return `* ${todo.text}`;
+      // Format as bullet points with priority if present
+      const priorityText = todo.priority ? `[${this.getPriorityLabel(todo.priority)}] ` : '';
+      return `* ${priorityText}${todo.text}`;
     });
     
     const allTasks = todoTexts.join('\n');
@@ -1560,6 +1829,16 @@ export class TodoWidget {
     }).catch(err => {
       console.error('Failed to copy tasks:', err);
     });
+  }
+  
+  getPriorityLabel(priority) {
+    const labels = {
+      'very-high': 'Very High',
+      'high': 'High',
+      'medium': 'Medium',
+      'low': 'Low'
+    };
+    return labels[priority] || '';
   }
   
   openSettings() {
