@@ -1,401 +1,184 @@
-// Arrow Navigation utility for widget movement and focus management
+// Arrow Navigation utility for widget movement with clickable buttons
 
 export class ArrowNavigation {
   constructor(container, options = {}) {
     this.container = container;
     this.options = {
-      focusClass: 'widget-focused',
-      movingClass: 'widget-moving',
-      movePreviewClass: 'move-preview',
+      moveControlsClass: 'widget-move-controls',
       onReorder: () => {},
       ...options
     };
     
-    this.focusedWidget = null;
-    this.movingWidget = null;
-    this.movePreview = null;
     this.widgets = [];
-    this.gridPositions = new Map();
   }
   
   init() {
     this.updateWidgetsList();
-    this.calculateGridPositions();
-    
-    // Set up event listeners
-    document.addEventListener('keydown', this.handleKeyDown.bind(this));
-    this.container.addEventListener('focusin', this.handleFocusIn.bind(this));
-    this.container.addEventListener('focusout', this.handleFocusOut.bind(this));
+    this.addMoveControlsToWidgets();
     
     // Set up mutation observer to track widget changes
     this.observer = new MutationObserver(() => {
       this.updateWidgetsList();
-      this.calculateGridPositions();
+      this.addMoveControlsToWidgets();
     });
     
     this.observer.observe(this.container, {
       childList: true,
       subtree: false
     });
-    
-    // Make first widget focusable if none are
-    if (this.widgets.length > 0 && !this.container.querySelector('.widget[tabindex="0"]')) {
-      this.widgets[0].setAttribute('tabindex', '0');
-    }
   }
   
   updateWidgetsList() {
     this.widgets = Array.from(this.container.querySelectorAll('.widget:not(.widget-placeholder)'));
-    
-    // Ensure all widgets are keyboard accessible
-    this.widgets.forEach((widget, index) => {
-      if (!widget.hasAttribute('tabindex')) {
-        widget.setAttribute('tabindex', index === 0 ? '0' : '-1');
-      }
-      
-      // Add ARIA labels for accessibility
-      const title = widget.querySelector('.widget-title');
-      if (title) {
-        widget.setAttribute('aria-label', `${title.textContent} widget. Press Enter to move, Delete to remove.`);
-      }
-    });
   }
   
-  calculateGridPositions() {
-    this.gridPositions.clear();
-    
-    if (this.widgets.length === 0) return;
-    
-    // Get computed styles to understand grid
-    const containerStyle = window.getComputedStyle(this.container);
-    const gridTemplateColumns = containerStyle.gridTemplateColumns;
-    const columnCount = gridTemplateColumns.split(' ').length;
-    
-    // Calculate positions for each widget
+  addMoveControlsToWidgets() {
     this.widgets.forEach(widget => {
-      const rect = widget.getBoundingClientRect();
-      const containerRect = this.container.getBoundingClientRect();
+      // Skip if controls already exist
+      if (widget.querySelector(`.${this.options.moveControlsClass}`)) return;
       
-      // Calculate relative position
-      const relativeLeft = rect.left - containerRect.left;
-      const relativeTop = rect.top - containerRect.top;
+      // Create move controls container
+      const controlsContainer = document.createElement('div');
+      controlsContainer.className = this.options.moveControlsClass;
+      controlsContainer.innerHTML = `
+        <button class="move-arrow move-left" aria-label="Move left" title="Move left">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+        <button class="move-arrow move-up" aria-label="Move up" title="Move up">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="18 15 12 9 6 15"></polyline>
+          </svg>
+        </button>
+        <button class="move-arrow move-down" aria-label="Move down" title="Move down">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+        <button class="move-arrow move-right" aria-label="Move right" title="Move right">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+      `;
       
-      // Estimate grid position
-      const cellWidth = containerRect.width / columnCount;
-      const cellHeight = rect.height; // Assume uniform row height
+      // Add controls to widget (not inside header)
+      widget.appendChild(controlsContainer);
       
-      const col = Math.round(relativeLeft / cellWidth);
-      const row = Math.round(relativeTop / cellHeight);
+      // Attach event listeners
+      const upBtn = controlsContainer.querySelector('.move-up');
+      const rightBtn = controlsContainer.querySelector('.move-right');
+      const downBtn = controlsContainer.querySelector('.move-down');
+      const leftBtn = controlsContainer.querySelector('.move-left');
       
-      this.gridPositions.set(widget, { row, col, rect });
+      upBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.moveWidget(widget, 'up');
+      });
+      
+      rightBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.moveWidget(widget, 'right');
+      });
+      
+      downBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.moveWidget(widget, 'down');
+      });
+      
+      leftBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.moveWidget(widget, 'left');
+      });
     });
   }
   
-  handleKeyDown(e) {
-    // Only handle keys when a widget is focused
-    if (!this.focusedWidget) return;
+  moveWidget(widget, direction) {
+    const widgets = Array.from(this.container.querySelectorAll('.widget:not(.widget-placeholder)'));
+    const currentIndex = widgets.indexOf(widget);
     
-    const isMoving = this.movingWidget !== null;
-    
-    switch(e.key) {
-      case 'ArrowUp':
-      case 'ArrowDown':
-      case 'ArrowLeft':
-      case 'ArrowRight':
-        e.preventDefault();
-        if (isMoving) {
-          this.handleMovePreview(e.key);
-        } else {
-          this.navigateFocus(e.key);
-        }
-        break;
-        
-      case 'Enter':
-        e.preventDefault();
-        if (isMoving) {
-          this.confirmMove();
-        } else {
-          this.startMove();
-        }
-        break;
-        
-      case 'Escape':
-        e.preventDefault();
-        if (isMoving) {
-          this.cancelMove();
-        }
-        break;
-        
-      case 'Delete':
-      case 'Backspace':
-        if (!isMoving && this.focusedWidget) {
-          e.preventDefault();
-          this.handleRemoveWidget();
-        }
-        break;
-    }
-  }
-  
-  handleFocusIn(e) {
-    const widget = e.target.closest('.widget');
-    if (widget && this.widgets.includes(widget)) {
-      this.setFocusedWidget(widget);
-    }
-  }
-  
-  handleFocusOut(e) {
-    // Don't remove focus class if we're moving to another widget
-    setTimeout(() => {
-      if (!this.container.contains(document.activeElement)) {
-        this.clearFocus();
-      }
-    }, 0);
-  }
-  
-  setFocusedWidget(widget) {
-    // Clear previous focus
-    this.clearFocus();
-    
-    this.focusedWidget = widget;
-    widget.classList.add(this.options.focusClass);
-    
-    // Update tabindex for proper tab navigation
-    this.widgets.forEach(w => {
-      w.setAttribute('tabindex', w === widget ? '0' : '-1');
-    });
-  }
-  
-  clearFocus() {
-    if (this.focusedWidget) {
-      this.focusedWidget.classList.remove(this.options.focusClass);
-      this.focusedWidget = null;
-    }
-  }
-  
-  navigateFocus(direction) {
-    if (!this.focusedWidget) return;
-    
-    const currentPos = this.gridPositions.get(this.focusedWidget);
-    if (!currentPos) return;
-    
-    let targetWidget = null;
-    let minDistance = Infinity;
-    
-    this.widgets.forEach(widget => {
-      if (widget === this.focusedWidget) return;
-      
-      const pos = this.gridPositions.get(widget);
-      if (!pos) return;
-      
-      let isCandidate = false;
-      let distance = 0;
-      
-      switch(direction) {
-        case 'ArrowUp':
-          if (pos.row < currentPos.row) {
-            isCandidate = true;
-            distance = Math.abs(pos.col - currentPos.col) + (currentPos.row - pos.row) * 10;
-          }
-          break;
-          
-        case 'ArrowDown':
-          if (pos.row > currentPos.row) {
-            isCandidate = true;
-            distance = Math.abs(pos.col - currentPos.col) + (pos.row - currentPos.row) * 10;
-          }
-          break;
-          
-        case 'ArrowLeft':
-          if (pos.col < currentPos.col) {
-            isCandidate = true;
-            distance = Math.abs(pos.row - currentPos.row) + (currentPos.col - pos.col) * 10;
-          }
-          break;
-          
-        case 'ArrowRight':
-          if (pos.col > currentPos.col) {
-            isCandidate = true;
-            distance = Math.abs(pos.row - currentPos.row) + (pos.col - pos.col) * 10;
-          }
-          break;
-      }
-      
-      if (isCandidate && distance < minDistance) {
-        minDistance = distance;
-        targetWidget = widget;
-      }
-    });
-    
-    if (targetWidget) {
-      targetWidget.focus();
-      this.setFocusedWidget(targetWidget);
-    }
-  }
-  
-  startMove() {
-    if (!this.focusedWidget) return;
-    
-    this.movingWidget = this.focusedWidget;
-    this.movingWidget.classList.add(this.options.movingClass);
-    
-    // Create move preview element
-    this.createMovePreview();
-    
-    // Announce to screen readers
-    this.announce('Move mode activated. Use arrow keys to select new position, Enter to confirm, Escape to cancel.');
-  }
-  
-  createMovePreview() {
-    this.movePreview = document.createElement('div');
-    this.movePreview.className = `widget ${this.options.movePreviewClass}`;
-    
-    // Copy size classes from moving widget
-    const sizeClasses = ['widget-1x1', 'widget-2x1', 'widget-1x2', 'widget-2x2', 'widget-3x1', 'widget-3x2', 'widget-3x3'];
-    sizeClasses.forEach(cls => {
-      if (this.movingWidget.classList.contains(cls)) {
-        this.movePreview.classList.add(cls);
-      }
-    });
-    
-    // Insert preview at current position
-    this.movingWidget.parentNode.insertBefore(this.movePreview, this.movingWidget.nextSibling);
-  }
-  
-  handleMovePreview(direction) {
-    if (!this.movePreview || !this.movingWidget) return;
-    
-    const widgets = Array.from(this.container.querySelectorAll('.widget:not(.move-preview)'));
-    const currentIndex = widgets.indexOf(this.movePreview.nextSibling) || widgets.length;
+    if (currentIndex === -1) return;
     
     let targetIndex = currentIndex;
     
-    // Simple index-based movement for now
+    // Calculate grid dimensions
+    const containerStyle = window.getComputedStyle(this.container);
+    const gridTemplateColumns = containerStyle.gridTemplateColumns;
+    const columnCount = gridTemplateColumns.split(' ').filter(col => col !== '0px').length || 4;
+    
+    // Calculate current position in grid
+    const currentRow = Math.floor(currentIndex / columnCount);
+    const currentCol = currentIndex % columnCount;
+    
     switch(direction) {
-      case 'ArrowLeft':
-      case 'ArrowUp':
-        targetIndex = Math.max(0, currentIndex - 1);
+      case 'up':
+        if (currentRow > 0) {
+          targetIndex = currentIndex - columnCount;
+        }
         break;
         
-      case 'ArrowRight':
-      case 'ArrowDown':
-        targetIndex = Math.min(widgets.length, currentIndex + 1);
+      case 'down':
+        targetIndex = currentIndex + columnCount;
+        break;
+        
+      case 'left':
+        if (currentCol > 0) {
+          targetIndex = currentIndex - 1;
+        }
+        break;
+        
+      case 'right':
+        if (currentCol < columnCount - 1 && currentIndex < widgets.length - 1) {
+          targetIndex = currentIndex + 1;
+        }
         break;
     }
     
-    if (targetIndex !== currentIndex) {
-      if (targetIndex === widgets.length) {
-        this.container.appendChild(this.movePreview);
-      } else {
-        this.container.insertBefore(this.movePreview, widgets[targetIndex]);
-      }
-      
-      this.announce(`Position ${targetIndex + 1} of ${widgets.length + 1}`);
+    // Perform the move if target index is valid and different
+    if (targetIndex !== currentIndex && targetIndex >= 0 && targetIndex < widgets.length) {
+      this.performMove(widget, widgets[targetIndex], targetIndex < currentIndex);
     }
   }
   
-  confirmMove() {
-    if (!this.movingWidget || !this.movePreview) return;
+  performMove(widget, targetWidget, insertBefore) {
+    if (!widget || !targetWidget || widget === targetWidget) return;
     
-    // Move the widget to preview position
-    this.movePreview.parentNode.replaceChild(this.movingWidget, this.movePreview);
+    // Store the widget being moved and its original position
+    const movingWidget = widget;
     
-    // Clean up
-    this.movingWidget.classList.remove(this.options.movingClass);
-    this.movingWidget = null;
-    this.movePreview = null;
+    // Perform the move
+    if (insertBefore) {
+      targetWidget.parentNode.insertBefore(movingWidget, targetWidget);
+    } else {
+      targetWidget.parentNode.insertBefore(movingWidget, targetWidget.nextSibling);
+    }
     
     // Get new order and notify
     const newOrder = Array.from(this.container.querySelectorAll('.widget'))
-      .map(widget => widget.dataset.widgetId)
+      .map(w => w.dataset.widgetId)
       .filter(id => id);
     
     this.options.onReorder(newOrder);
     
-    // Recalculate positions
-    this.calculateGridPositions();
-    
-    this.announce('Widget moved successfully');
-  }
-  
-  cancelMove() {
-    if (!this.movingWidget || !this.movePreview) return;
-    
-    // Remove preview
-    this.movePreview.remove();
-    
-    // Clean up
-    this.movingWidget.classList.remove(this.options.movingClass);
-    this.movingWidget = null;
-    this.movePreview = null;
-    
-    this.announce('Move cancelled');
-  }
-  
-  handleRemoveWidget() {
-    if (!this.focusedWidget) return;
-    
-    const widgetTitle = this.focusedWidget.querySelector('.widget-title')?.textContent || 'this widget';
-    
-    if (confirm(`Are you sure you want to remove ${widgetTitle}?`)) {
-      // Find next widget to focus
-      const widgets = Array.from(this.container.querySelectorAll('.widget'));
-      const currentIndex = widgets.indexOf(this.focusedWidget);
-      const nextWidget = widgets[currentIndex + 1] || widgets[currentIndex - 1];
-      
-      // Trigger remove through widget action button
-      const removeBtn = this.focusedWidget.querySelector('.widget-remove-btn');
-      if (removeBtn) {
-        removeBtn.click();
-      }
-      
-      // Focus next widget if available
-      if (nextWidget) {
-        setTimeout(() => {
-          nextWidget.focus();
-          this.setFocusedWidget(nextWidget);
-        }, 100);
-      }
-    }
-  }
-  
-  announce(message) {
-    // Create or update live region for screen reader announcements
-    let liveRegion = document.getElementById('arrow-nav-announcer');
-    if (!liveRegion) {
-      liveRegion = document.createElement('div');
-      liveRegion.id = 'arrow-nav-announcer';
-      liveRegion.setAttribute('aria-live', 'polite');
-      liveRegion.setAttribute('aria-atomic', 'true');
-      liveRegion.style.position = 'absolute';
-      liveRegion.style.left = '-10000px';
-      liveRegion.style.width = '1px';
-      liveRegion.style.height = '1px';
-      liveRegion.style.overflow = 'hidden';
-      document.body.appendChild(liveRegion);
-    }
-    
-    liveRegion.textContent = message;
+    // Add a brief animation class
+    movingWidget.classList.add('widget-just-moved');
+    setTimeout(() => {
+      movingWidget.classList.remove('widget-just-moved');
+    }, 300);
   }
   
   destroy() {
-    document.removeEventListener('keydown', this.handleKeyDown.bind(this));
-    this.container.removeEventListener('focusin', this.handleFocusIn.bind(this));
-    this.container.removeEventListener('focusout', this.handleFocusOut.bind(this));
-    
     if (this.observer) {
       this.observer.disconnect();
     }
     
-    // Clean up any active states
-    this.clearFocus();
-    if (this.movingWidget) {
-      this.cancelMove();
-    }
-    
-    // Remove announcer
-    const announcer = document.getElementById('arrow-nav-announcer');
-    if (announcer) {
-      announcer.remove();
-    }
+    // Remove all move controls
+    this.widgets.forEach(widget => {
+      const controls = widget.querySelector(`.${this.options.moveControlsClass}`);
+      if (controls) {
+        controls.remove();
+      }
+    });
   }
 }

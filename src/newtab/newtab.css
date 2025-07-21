@@ -491,7 +491,6 @@ body {
   transition: all 0.1s ease;
 }
 
-/* Drag and Drop */
 /* Arrow Navigation Styles */
 .widget:focus {
   outline: 2px solid var(--primary);
@@ -504,24 +503,72 @@ body {
   transition: all var(--transition-base);
 }
 
-.widget-moving {
-  opacity: 0.8;
-  transform: scale(0.95);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  z-index: 100;
+.widget-just-moved {
+  animation: widgetMoved 0.3s ease-out;
 }
 
-.move-preview {
-  background: var(--primary);
-  opacity: 0.2;
-  border: 2px dashed var(--primary);
-  border-radius: var(--radius-lg);
-  transition: all var(--transition-base);
+@keyframes widgetMoved {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.4);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 10px rgba(96, 165, 250, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(96, 165, 250, 0);
+  }
 }
 
-.move-preview.active {
-  opacity: 0.3;
-  transform: scale(1.02);
+/* Widget Move Controls */
+.widget-move-controls {
+  position: absolute;
+  top: 12px;
+  right: 90px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 10;
+}
+
+.widget:hover .widget-move-controls {
+  opacity: 0.6;
+}
+
+.move-arrow {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.move-arrow:hover {
+  color: var(--foreground);
+  transform: scale(1.2);
+}
+
+.move-arrow:active {
+  transform: scale(1);
+}
+
+.move-arrow svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Adjust widget header to accommodate move controls */
+.widget-header {
+  position: relative;
 }
 
 /* Add Widget Button */
