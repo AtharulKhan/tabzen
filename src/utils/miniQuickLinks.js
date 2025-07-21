@@ -160,21 +160,26 @@ export class MiniQuickLinksManager {
     const left = Math.round((window.screen.width - width) / 2);
     const top = Math.round((window.screen.height - height) / 2);
     
-    chrome.windows.create({
-      url: url,
-      type: 'popup',
-      width: width,
-      height: height,
-      left: left,
-      top: top,
-      focused: true
-    }, (window) => {
-      if (chrome.runtime.lastError) {
-        console.error('Error creating popup:', chrome.runtime.lastError);
-        // Fallback to regular tab
-        chrome.tabs.create({ url });
-      }
-    });
+    if (typeof chrome !== 'undefined' && chrome.windows && typeof chrome.windows.create === 'function') {
+      chrome.windows.create({
+        url: url,
+        type: 'popup',
+        width: width,
+        height: height,
+        left: left,
+        top: top,
+        focused: true
+      }, (window) => {
+        if (chrome.runtime.lastError) {
+          console.error('Error creating popup:', chrome.runtime.lastError);
+          // Fallback to regular tab
+          chrome.tabs.create({ url });
+        }
+      });
+    } else {
+      // Fallback to regular tab if windows API not available
+      chrome.tabs.create({ url });
+    }
   }
   
   showAddLinkModal() {

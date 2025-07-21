@@ -339,17 +339,24 @@ export class VisionBoardWidget {
     }
     
     const container = document.querySelector('.vision-board-canvas-container');
-    if (container) {
+    if (container && container.offsetWidth > 0 && container.offsetHeight > 0) {
       const width = container.offsetWidth || 800;
       const height = container.offsetHeight || 600;
       
       console.log('Resizing canvas to:', width, 'x', height);
       
-      this.canvas.setDimensions({
-        width: width,
-        height: height
-      });
-      this.canvas.renderAll();
+      try {
+        // Additional safety check
+        if (this.canvas && typeof this.canvas.setDimensions === 'function') {
+          this.canvas.setDimensions({
+            width: width,
+            height: height
+          });
+          this.canvas.renderAll();
+        }
+      } catch (error) {
+        console.error('Error resizing canvas:', error);
+      }
     }
   }
   

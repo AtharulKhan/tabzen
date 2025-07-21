@@ -16,6 +16,12 @@
     "history"
   ],
   
+  "optional_permissions": [
+    "windows",
+    "contextMenus",
+    "notifications"
+  ],
+  
   "chrome_url_overrides": {
     "newtab": "src/newtab/newtab.html"
   },

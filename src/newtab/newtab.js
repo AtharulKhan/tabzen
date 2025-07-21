@@ -1355,23 +1355,24 @@ class TabZenApp {
     const left = Math.round((window.screen.width - width) / 2);
     const top = Math.round((window.screen.height - height) / 2);
     
-    // Use Chrome Windows API for better control
-    chrome.windows.create({
-      url: url,
-      type: 'popup',  // This removes the address bar and most UI
-      width: width,
-      height: height,
-      left: left,
-      top: top,
-      focused: true
-    }, (createdWindow) => {
-      if (chrome.runtime.lastError) {
-        console.error('Error creating popup:', chrome.runtime.lastError);
-        // Fallback to regular window.open
-        const features = [
-          `width=${width}`,
-          `height=${height}`,
-          `left=${left}`,
+    // Use Chrome Windows API for better control if available
+    if (typeof chrome !== 'undefined' && chrome.windows && typeof chrome.windows.create === 'function') {
+      chrome.windows.create({
+        url: url,
+        type: 'popup',  // This removes the address bar and most UI
+        width: width,
+        height: height,
+        left: left,
+        top: top,
+        focused: true
+      }, (createdWindow) => {
+        if (chrome.runtime.lastError) {
+          console.error('Error creating popup:', chrome.runtime.lastError);
+          // Fallback to regular window.open
+          const features = [
+            `width=${width}`,
+            `height=${height}`,
+            `left=${left}`,
           `top=${top}`,
           'toolbar=no',
           'location=no',
@@ -1414,6 +1415,23 @@ class TabZenApp {
         }
       });
     });
+    } else {
+      // Fallback if chrome.windows API is not available
+      const features = [
+        `width=${width}`,
+        `height=${height}`,
+        `left=${left}`,
+        `top=${top}`,
+        'toolbar=no',
+        'location=no',
+        'directories=no',
+        'status=no',
+        'menubar=no',
+        'scrollbars=yes',
+        'resizable=yes'
+      ].join(',');
+      window.open(url, '_blank', features);
+    }
     
     // Close search results after opening
     this.hideSearchResults();

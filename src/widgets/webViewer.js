@@ -575,21 +575,22 @@ export class WebViewerWidget {
       const top = Math.round((window.screen.height - height) / 2);
       
       // Create a popup window with minimal UI
-      chrome.windows.create({
-        url: link.url,
-        type: 'popup',  // This removes the address bar and most UI
-        width: width,
-        height: height,
-        left: left,
-        top: top,
-        focused: true
-      }, (createdWindow) => {
-        if (chrome.runtime.lastError) {
-          console.error('Error creating popup:', chrome.runtime.lastError);
-          // Fallback to regular tab if popup fails
-          chrome.tabs.create({ url: link.url });
-          return;
-        }
+      if (typeof chrome !== 'undefined' && chrome.windows && typeof chrome.windows.create === 'function') {
+        chrome.windows.create({
+          url: link.url,
+          type: 'popup',  // This removes the address bar and most UI
+          width: width,
+          height: height,
+          left: left,
+          top: top,
+          focused: true
+        }, (createdWindow) => {
+          if (chrome.runtime.lastError) {
+            console.error('Error creating popup:', chrome.runtime.lastError);
+            // Fallback to regular tab if popup fails
+            chrome.tabs.create({ url: link.url });
+            return;
+          }
         
         // Monitor window focus to close when clicking outside (if enabled)
         if (this.autoCloseOnBlur) {
@@ -624,6 +625,10 @@ export class WebViewerWidget {
           });
         }
       });
+      } else {
+        // Fallback to regular tab if windows API not available
+        chrome.tabs.create({ url: link.url });
+      }
     } else {
       // Save return URL and navigate in same tab
       sessionStorage.setItem('tabzen_return_url', window.location.href);
