@@ -209,21 +209,25 @@ export class TodoWidget {
           align-items: center;
           justify-content: center;
           border-radius: 4px;
-          font-size: 14px;
+          font-size: 16px;
         }
         
         .todo-note-icon:hover {
           opacity: 1;
           background: var(--surface-hover);
+          transform: scale(1.1);
         }
         
         .todo-note-icon.has-note {
-          color: var(--primary);
-          opacity: 0.8;
+          color: #3b82f6;
+          opacity: 1;
+          font-size: 18px;
         }
         
         .todo-note-icon.has-note:hover {
           opacity: 1;
+          color: #2563eb;
+          background: rgba(59, 130, 246, 0.1);
         }
         
         .todo-item:last-child {
@@ -1759,7 +1763,7 @@ export class TodoWidget {
           </div>
         </div>
         <div class="todo-note-icon ${todo.note ? 'has-note' : ''}" title="${todo.note ? 'Edit note' : 'Add note'}">
-          📝
+          ${todo.note ? '📄' : '📝'}
         </div>
         <input 
           type="checkbox" 
@@ -1850,6 +1854,7 @@ export class TodoWidget {
       items: this.todos.map(todo => ({
         text: todo.text,
         priority: todo.priority,
+        note: todo.note || '',
         completed: false  // Always save as uncompleted in template
       })),
       createdAt: Date.now()
@@ -2550,10 +2555,19 @@ export class TodoWidget {
     const todoTexts = this.todos.map((todo, index) => {
       // Format as bullet points with priority if present
       const priorityText = todo.priority ? `[${this.getPriorityLabel(todo.priority)}] ` : '';
-      return `* ${priorityText}${todo.text}`;
+      let taskText = `* ${priorityText}${todo.text}`;
+      
+      // Add note if present (indented under the task)
+      if (todo.note) {
+        // Split note by lines and indent each line
+        const noteLines = todo.note.split('\n').map(line => `  ${line}`).join('\n');
+        taskText += `\n  📄 Note:\n${noteLines}`;
+      }
+      
+      return taskText;
     });
     
-    const allTasks = todoTexts.join('\n');
+    const allTasks = todoTexts.join('\n\n');
     
     navigator.clipboard.writeText(allTasks).then(() => {
       // Show success feedback
