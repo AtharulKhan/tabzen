@@ -34,6 +34,7 @@ export class TodoWidget {
             text: item.text,
             completed: false,
             priority: item.priority || null,
+            note: item.note || '',
             createdAt: Date.now(),
             order: this.todos.length + index
           });
@@ -193,6 +194,36 @@ export class TodoWidget {
           margin-bottom: 4px;
           position: relative;
           overflow: visible;
+        }
+        
+        /* Note icon styles */
+        .todo-note-icon {
+          width: 24px;
+          height: 24px;
+          margin-right: 8px;
+          cursor: pointer;
+          color: var(--muted);
+          opacity: 0.5;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 4px;
+          font-size: 14px;
+        }
+        
+        .todo-note-icon:hover {
+          opacity: 1;
+          background: var(--surface-hover);
+        }
+        
+        .todo-note-icon.has-note {
+          color: var(--primary);
+          opacity: 0.8;
+        }
+        
+        .todo-note-icon.has-note:hover {
+          opacity: 1;
         }
         
         .todo-item:last-child {
@@ -1078,6 +1109,291 @@ export class TodoWidget {
           opacity: 0.5;
           cursor: not-allowed;
         }
+        
+        /* Note Modal Styles */
+        .todo-note-modal {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 3000;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.2s ease;
+        }
+        
+        .todo-note-modal.show {
+          opacity: 1;
+          pointer-events: auto;
+        }
+        
+        .todo-note-content {
+          background: var(--background);
+          border-radius: 12px;
+          width: 90%;
+          max-width: 600px;
+          height: 400px;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .todo-note-header {
+          padding: 20px 24px;
+          border-bottom: 1px solid var(--border);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        
+        .todo-note-title {
+          font-size: 18px;
+          font-weight: 600;
+          margin: 0;
+          color: var(--foreground);
+        }
+        
+        .todo-note-close {
+          width: 32px;
+          height: 32px;
+          border: none;
+          background: transparent;
+          color: var(--muted);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 6px;
+          font-size: 20px;
+          transition: all 0.2s ease;
+        }
+        
+        .todo-note-close:hover {
+          background: var(--surface-hover);
+          color: var(--foreground);
+        }
+        
+        .todo-note-body {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          position: relative;
+        }
+        
+        .todo-note-editor {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+        }
+        
+        .todo-note-textarea {
+          flex: 1;
+          padding: 20px;
+          font-family: 'Cascadia Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
+          font-size: 14px;
+          line-height: 1.6;
+          border: none;
+          background: var(--background);
+          color: var(--foreground);
+          resize: none;
+          outline: none;
+        }
+        
+        .todo-note-preview {
+          position: absolute;
+          inset: 0;
+          padding: 20px;
+          overflow-y: auto;
+          background: var(--surface);
+          display: none;
+        }
+        
+        .todo-note-preview.show {
+          display: block;
+        }
+        
+        .todo-note-preview-content {
+          font-size: 14px;
+          line-height: 1.6;
+          color: var(--foreground);
+        }
+        
+        /* Markdown preview styles */
+        .todo-note-preview-content h1,
+        .todo-note-preview-content h2,
+        .todo-note-preview-content h3,
+        .todo-note-preview-content h4,
+        .todo-note-preview-content h5,
+        .todo-note-preview-content h6 {
+          margin: 0 0 12px 0;
+          font-weight: 600;
+          line-height: 1.3;
+        }
+        
+        .todo-note-preview-content h1 { font-size: 24px; }
+        .todo-note-preview-content h2 { font-size: 20px; }
+        .todo-note-preview-content h3 { font-size: 18px; }
+        .todo-note-preview-content h4 { font-size: 16px; }
+        .todo-note-preview-content h5 { font-size: 14px; }
+        .todo-note-preview-content h6 { font-size: 12px; }
+        
+        .todo-note-preview-content p {
+          margin: 0 0 12px 0;
+        }
+        
+        .todo-note-preview-content ul,
+        .todo-note-preview-content ol {
+          margin: 0 0 12px 0;
+          padding-left: 24px;
+        }
+        
+        .todo-note-preview-content li {
+          margin: 4px 0;
+        }
+        
+        .todo-note-preview-content blockquote {
+          margin: 0 0 12px 0;
+          padding-left: 16px;
+          border-left: 3px solid var(--border);
+          color: var(--muted);
+        }
+        
+        .todo-note-preview-content code {
+          background: var(--surface-hover);
+          padding: 2px 4px;
+          border-radius: 3px;
+          font-family: 'Cascadia Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
+          font-size: 0.9em;
+        }
+        
+        .todo-note-preview-content pre {
+          background: var(--surface-hover);
+          padding: 12px;
+          border-radius: 6px;
+          overflow-x: auto;
+          margin: 0 0 12px 0;
+        }
+        
+        .todo-note-preview-content pre code {
+          background: transparent;
+          padding: 0;
+        }
+        
+        .todo-note-preview-content a {
+          color: var(--primary);
+          text-decoration: underline;
+        }
+        
+        .todo-note-preview-content a:hover {
+          opacity: 0.8;
+        }
+        
+        .todo-note-preview-content hr {
+          border: none;
+          border-top: 1px solid var(--border);
+          margin: 16px 0;
+        }
+        
+        .todo-note-preview-content strong {
+          font-weight: 600;
+        }
+        
+        .todo-note-preview-content em {
+          font-style: italic;
+        }
+        
+        .todo-note-preview-content del {
+          text-decoration: line-through;
+          opacity: 0.6;
+        }
+        
+        .todo-note-footer {
+          padding: 16px 24px;
+          border-top: 1px solid var(--border);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        
+        .todo-note-left-actions {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        
+        .todo-note-preview-toggle {
+          padding: 6px 12px;
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 6px;
+          font-size: 13px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          color: var(--foreground);
+        }
+        
+        .todo-note-preview-toggle:hover {
+          background: var(--surface-hover);
+          border-color: var(--primary);
+        }
+        
+        .todo-note-preview-toggle.active {
+          background: var(--primary);
+          color: white;
+          border-color: var(--primary);
+        }
+        
+        .todo-note-hint {
+          font-size: 12px;
+          color: var(--muted);
+        }
+        
+        .todo-note-actions {
+          display: flex;
+          gap: 8px;
+        }
+        
+        .todo-note-btn {
+          padding: 8px 16px;
+          border: none;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        
+        .todo-note-btn.primary {
+          background: var(--primary);
+          color: white;
+        }
+        
+        .todo-note-btn.primary:hover {
+          background: var(--primary-hover);
+        }
+        
+        .todo-note-btn.secondary {
+          background: var(--surface-hover);
+          color: var(--foreground);
+        }
+        
+        .todo-note-btn.secondary:hover {
+          background: var(--border);
+        }
+        
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+          .todo-note-content {
+            height: 90vh;
+            max-height: 500px;
+          }
+        }
       </style>
       <style>
         /* Override widget overflow for priority dropdown */
@@ -1227,6 +1543,46 @@ export class TodoWidget {
         </div>
       </div>
       
+      <!-- Note Modal -->
+      <div class="todo-note-modal" id="todoNoteModal">
+        <div class="todo-note-content">
+          <div class="todo-note-header">
+            <h3 class="todo-note-title" id="todoNoteTitle">Task Notes</h3>
+            <button class="todo-note-close" id="todoNoteClose">×</button>
+          </div>
+          <div class="todo-note-body">
+            <div class="todo-note-editor">
+              <textarea 
+                class="todo-note-textarea" 
+                id="todoNoteTextarea"
+                placeholder="Add notes for this task...\n\nYou can use markdown:\n- **Bold text**\n- *Italic text*\n- # Headers\n- [Links](https://example.com)\n- Lists and more!"
+              ></textarea>
+            </div>
+            <div class="todo-note-preview" id="todoNotePreviewPane">
+              <div class="todo-note-preview-content" id="todoNotePreview">
+                <p style="color: var(--muted); text-align: center;">Preview will appear here...</p>
+              </div>
+            </div>
+          </div>
+          <div class="todo-note-footer">
+            <div class="todo-note-left-actions">
+              <button class="todo-note-preview-toggle" id="todoNotePreviewToggle">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                Preview
+              </button>
+              <div class="todo-note-hint">Supports Markdown</div>
+            </div>
+            <div class="todo-note-actions">
+              <button class="todo-note-btn secondary" id="todoNoteCancel">Cancel</button>
+              <button class="todo-note-btn primary" id="todoNoteSave">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <!-- Settings Modal -->
       <div class="todo-settings-modal" id="todoSettingsModal">
         <div class="todo-settings-content">
@@ -1293,6 +1649,19 @@ export class TodoWidget {
     this.templateApplyModal = todoContainer.querySelector('#templateApplyModal');
     this.templateApplyHeader = todoContainer.querySelector('#templateApplyHeader');
     this.templateApplyCancel = todoContainer.querySelector('#templateApplyCancel');
+    
+    // Note modal elements
+    this.noteModal = todoContainer.querySelector('#todoNoteModal');
+    this.noteTitle = todoContainer.querySelector('#todoNoteTitle');
+    this.noteClose = todoContainer.querySelector('#todoNoteClose');
+    this.noteTextarea = todoContainer.querySelector('#todoNoteTextarea');
+    this.notePreview = todoContainer.querySelector('#todoNotePreview');
+    this.notePreviewPane = todoContainer.querySelector('#todoNotePreviewPane');
+    this.notePreviewToggle = todoContainer.querySelector('#todoNotePreviewToggle');
+    this.noteCancel = todoContainer.querySelector('#todoNoteCancel');
+    this.noteSave = todoContainer.querySelector('#todoNoteSave');
+    this.currentNoteId = null;
+    this.isPreviewMode = false;
     
     // Settings modal elements
     this.settingsModal = todoContainer.querySelector('#todoSettingsModal');
@@ -1388,6 +1757,9 @@ export class TodoWidget {
               <span>Very High</span>
             </div>
           </div>
+        </div>
+        <div class="todo-note-icon ${todo.note ? 'has-note' : ''}" title="${todo.note ? 'Edit note' : 'Add note'}">
+          📝
         </div>
         <input 
           type="checkbox" 
@@ -1504,6 +1876,7 @@ export class TodoWidget {
         text: item.text,
         completed: false,
         priority: item.priority || null,
+        note: item.note || '',
         createdAt: Date.now(),
         order: this.todos.length + index
       });
@@ -1606,6 +1979,7 @@ export class TodoWidget {
         text,
         completed: false,
         priority: null,
+        note: '',
         createdAt: Date.now(),
         order: Math.max(...this.todos.map(t => t.order || 0), -1) + 1
       };
@@ -1646,6 +2020,13 @@ export class TodoWidget {
           const url = e.target.href;
           chrome.tabs.create({ url: url });
         }
+        return;
+      }
+      
+      // Handle note icon click
+      if (e.target.closest('.todo-note-icon')) {
+        e.stopPropagation();
+        this.openNoteEditor(todoId);
         return;
       }
       
@@ -2024,12 +2405,121 @@ export class TodoWidget {
         }
       }
     });
+    
+    // Note modal event handlers
+    this.noteClose.addEventListener('click', () => {
+      this.closeNoteEditor();
+    });
+    
+    this.noteCancel.addEventListener('click', () => {
+      this.closeNoteEditor();
+    });
+    
+    this.noteSave.addEventListener('click', () => {
+      this.saveNote();
+    });
+    
+    // Preview toggle
+    this.notePreviewToggle.addEventListener('click', () => {
+      this.toggleNotePreview();
+    });
+    
+    // Close note modal on background click
+    this.noteModal.addEventListener('click', (e) => {
+      if (e.target === this.noteModal) {
+        this.closeNoteEditor();
+      }
+    });
+    
+    // Keyboard shortcuts in note editor
+    this.noteTextarea.addEventListener('keydown', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 's') {
+          e.preventDefault();
+          this.saveNote();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          this.saveNote();
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        this.closeNoteEditor();
+      }
+    });
   }
   
   escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+  
+  parseMarkdown(text) {
+    // Escape HTML first
+    let html = this.escapeHtml(text);
+    
+    // Headers
+    html = html.replace(/^######\s(.+)$/gm, '<h6>$1</h6>');
+    html = html.replace(/^#####\s(.+)$/gm, '<h5>$1</h5>');
+    html = html.replace(/^####\s(.+)$/gm, '<h4>$1</h4>');
+    html = html.replace(/^###\s(.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^##\s(.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^#\s(.+)$/gm, '<h1>$1</h1>');
+    
+    // Bold and italic
+    html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    html = html.replace(/___(.+?)___/g, '<strong><em>$1</em></strong>');
+    html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+    html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+    
+    // Strikethrough
+    html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
+    
+    // Links
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    
+    // Inline code
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    
+    // Code blocks
+    html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+    
+    // Blockquotes
+    html = html.replace(/^>\s(.+)$/gm, '<blockquote>$1</blockquote>');
+    
+    // Horizontal rules
+    html = html.replace(/^---$/gm, '<hr>');
+    html = html.replace(/^\*\*\*$/gm, '<hr>');
+    
+    // Lists
+    // Unordered lists
+    html = html.replace(/^[\*\-]\s(.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>)(?=\n(?!<li>)|\n?$)/gs, '<ul>$1</ul>');
+    
+    // Ordered lists
+    html = html.replace(/^\d+\.\s(.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>)(?=\n(?!<li>)|\n?$)/gs, function(match) {
+      if (!match.includes('<ul>')) {
+        return '<ol>' + match + '</ol>';
+      }
+      return match;
+    });
+    
+    // Paragraphs
+    html = html.split('\n\n').map(paragraph => {
+      paragraph = paragraph.trim();
+      if (paragraph && !paragraph.match(/^<[^>]+>/)) {
+        return '<p>' + paragraph + '</p>';
+      }
+      return paragraph;
+    }).join('\n\n');
+    
+    // Clean up nested blockquotes
+    html = html.replace(/<\/blockquote>\n<blockquote>/g, '\n');
+    
+    return html;
   }
   
   getPriorityInfo(priority) {
@@ -2104,6 +2594,69 @@ export class TodoWidget {
     
     // Show the settings modal
     this.settingsModal.classList.add('show');
+  }
+  
+  openNoteEditor(todoId) {
+    const todo = this.todos.find(t => t.id === todoId);
+    if (!todo) return;
+    
+    this.currentNoteId = todoId;
+    this.noteTextarea.value = todo.note || '';
+    this.noteTitle.textContent = `Notes for: ${todo.text.substring(0, 50)}${todo.text.length > 50 ? '...' : ''}`;
+    
+    // Update preview
+    this.updateNotePreview();
+    
+    // Show modal
+    this.noteModal.classList.add('show');
+    this.noteTextarea.focus();
+  }
+  
+  closeNoteEditor() {
+    this.noteModal.classList.remove('show');
+    this.currentNoteId = null;
+    this.noteTextarea.value = '';
+    this.notePreview.innerHTML = '<p style="color: var(--muted); text-align: center;">Preview will appear here...</p>';
+    this.isPreviewMode = false;
+    this.notePreviewPane.classList.remove('show');
+    this.notePreviewToggle.classList.remove('active');
+  }
+  
+  saveNote() {
+    if (!this.currentNoteId) return;
+    
+    const todo = this.todos.find(t => t.id === this.currentNoteId);
+    if (!todo) return;
+    
+    todo.note = this.noteTextarea.value.trim();
+    this.saveState();
+    this.renderTodos();
+    this.closeNoteEditor();
+  }
+  
+  updateNotePreview() {
+    const text = this.noteTextarea.value;
+    if (!text.trim()) {
+      this.notePreview.innerHTML = '<p style="color: var(--muted); text-align: center;">Preview will appear here...</p>';
+    } else {
+      this.notePreview.innerHTML = this.parseMarkdown(text);
+    }
+  }
+  
+  toggleNotePreview() {
+    this.isPreviewMode = !this.isPreviewMode;
+    
+    if (this.isPreviewMode) {
+      // Update preview content before showing
+      this.updateNotePreview();
+      this.notePreviewPane.classList.add('show');
+      this.notePreviewToggle.classList.add('active');
+    } else {
+      this.notePreviewPane.classList.remove('show');
+      this.notePreviewToggle.classList.remove('active');
+      // Focus back on textarea when exiting preview
+      this.noteTextarea.focus();
+    }
   }
   
   destroy() {
