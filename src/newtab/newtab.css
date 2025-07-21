@@ -319,9 +319,35 @@ body {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(var(--grid-columns, 4), 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(var(--min-widget-width, 280px), 1fr));
   gap: var(--widget-gap, 16px);
   margin-bottom: var(--space-xl);
+  --min-widget-width: 280px;
+}
+
+/* Limit maximum columns based on user preference and screen size */
+@media (min-width: 1600px) {
+  .widget-grid {
+    grid-template-columns: repeat(min(var(--grid-columns, 4), 6), minmax(var(--min-widget-width, 280px), 1fr));
+  }
+}
+
+@media (min-width: 1400px) and (max-width: 1599px) {
+  .widget-grid {
+    grid-template-columns: repeat(min(var(--grid-columns, 4), 5), minmax(var(--min-widget-width, 280px), 1fr));
+  }
+}
+
+@media (min-width: 1200px) and (max-width: 1399px) {
+  .widget-grid {
+    grid-template-columns: repeat(min(var(--grid-columns, 4), 4), minmax(var(--min-widget-width, 280px), 1fr));
+  }
+}
+
+@media (min-width: 992px) and (max-width: 1199px) {
+  .widget-grid {
+    grid-template-columns: repeat(min(var(--grid-columns, 4), 3), minmax(var(--min-widget-width, 280px), 1fr));
+  }
 }
 
 /* Widgets */
@@ -340,6 +366,15 @@ body {
   flex-direction: column;
   position: relative;
   overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Ensure widget content doesn't overflow */
+.widget-content {
+  overflow-x: hidden;
+  overflow-y: auto;
+  width: 100%;
 }
 
 [data-theme="dark"] .widget {
@@ -732,14 +767,21 @@ body {
 }
 
 /* Responsive */
+@media (max-width: 991px) {
+  .widget-grid {
+    --min-widget-width: 260px;
+  }
+}
+
 @media (max-width: 768px) {
   .app-container {
     padding: var(--space-md);
   }
   
   .widget-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: var(--space-md);
+    --min-widget-width: 240px;
   }
   
   .greeting {
@@ -771,14 +813,34 @@ body {
   }
 }
 
+@media (max-width: 576px) {
+  .widget-grid {
+    grid-template-columns: 1fr;
+    --min-widget-width: 100%;
+  }
+  
+  .widget {
+    min-height: 250px; /* Reduce minimum height on mobile */
+  }
+}
+
 @media (max-width: 480px) {
   .widget-grid {
     grid-template-columns: 1fr;
+    gap: var(--space-sm);
   }
   
   .widget-2x1,
   .widget-2x2 {
     grid-column: span 1;
+  }
+  
+  .app-container {
+    padding: var(--space-sm);
+  }
+  
+  .widget {
+    min-height: 200px; /* Further reduce on very small screens */
   }
 }
 
