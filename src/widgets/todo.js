@@ -36,6 +36,7 @@ export class TodoWidget {
             priority: item.priority || null,
             note: item.note || '',
             links: item.links || [],
+            dueDate: item.dueDate || null,
             createdAt: Date.now(),
             order: this.todos.length + index
           });
@@ -58,7 +59,7 @@ export class TodoWidget {
     this.templates = this.savedData.templates || [];
     this.sortMode = this.savedData.sortMode || 'manual';
     
-    // Ensure all todos have an order field and links array
+    // Ensure all todos have an order field, links array, and dueDate
     let needsOrderUpdate = false;
     this.todos.forEach((todo, index) => {
       if (todo.order === undefined) {
@@ -67,6 +68,10 @@ export class TodoWidget {
       }
       if (!todo.links) {
         todo.links = [];
+        needsOrderUpdate = true;
+      }
+      if (todo.dueDate === undefined) {
+        todo.dueDate = null;
         needsOrderUpdate = true;
       }
     });
@@ -267,6 +272,87 @@ export class TodoWidget {
           opacity: 1;
           color: #059669;
           background: rgba(16, 185, 129, 0.1);
+        }
+        
+        /* Calendar icon styles */
+        .todo-calendar-icon {
+          width: 24px;
+          height: 24px;
+          margin-right: 8px;
+          cursor: pointer;
+          color: var(--muted);
+          opacity: 0.5;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 4px;
+          font-size: 16px;
+        }
+        
+        .todo-calendar-icon:hover {
+          opacity: 1;
+          background: var(--surface-hover);
+          transform: scale(1.1);
+        }
+        
+        .todo-calendar-icon.has-date {
+          color: #8b5cf6;
+          opacity: 1;
+          font-size: 18px;
+        }
+        
+        .todo-calendar-icon.has-date:hover {
+          opacity: 1;
+          color: #7c3aed;
+          background: rgba(139, 92, 246, 0.1);
+        }
+        
+        /* Due date display styles */
+        .todo-due-date {
+          margin-left: auto;
+          margin-right: 8px;
+          font-size: 13px;
+          font-weight: 500;
+          padding: 2px 8px;
+          border-radius: 4px;
+          white-space: nowrap;
+        }
+        
+        .due-date-overdue {
+          color: white;
+          background: #ef4444;
+        }
+        
+        .due-date-today {
+          color: white;
+          background: #f97316;
+        }
+        
+        .due-date-tomorrow {
+          color: white;
+          background: #eab308;
+        }
+        
+        .due-date-soon {
+          color: #92400e;
+          background: #fbbf24;
+        }
+        
+        .due-date-week {
+          color: #365314;
+          background: #84cc16;
+        }
+        
+        .due-date-later {
+          color: white;
+          background: #22c55e;
+        }
+        
+        .due-date-completed {
+          color: var(--muted);
+          background: var(--surface-hover);
+          text-decoration: line-through;
         }
         
         .todo-item:last-child {
@@ -981,6 +1067,151 @@ export class TodoWidget {
         }
         
         .todo-link-btn.secondary:hover {
+          background: var(--surface-hover);
+        }
+        
+        /* Due Date Modal Styles */
+        .todo-date-modal {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 3000;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.2s ease;
+        }
+        
+        .todo-date-modal.show {
+          opacity: 1;
+          pointer-events: auto;
+        }
+        
+        .todo-date-content {
+          background: var(--background);
+          border-radius: 12px;
+          width: 90%;
+          max-width: 400px;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .todo-date-header {
+          padding: 20px 24px;
+          border-bottom: 1px solid var(--border);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        
+        .todo-date-title {
+          font-size: 18px;
+          font-weight: 600;
+          margin: 0;
+          color: var(--foreground);
+        }
+        
+        .todo-date-close {
+          width: 32px;
+          height: 32px;
+          border: none;
+          background: transparent;
+          color: var(--muted);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 6px;
+          font-size: 20px;
+          transition: all 0.2s ease;
+        }
+        
+        .todo-date-close:hover {
+          background: var(--surface-hover);
+          color: var(--foreground);
+        }
+        
+        .todo-date-body {
+          padding: 24px;
+        }
+        
+        .todo-date-input {
+          width: 100%;
+          padding: 12px;
+          font-size: 16px;
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          background: var(--surface);
+          color: var(--foreground);
+          margin-bottom: 16px;
+        }
+        
+        .todo-date-input:focus {
+          outline: none;
+          border-color: var(--primary);
+        }
+        
+        .todo-date-shortcuts {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+        }
+        
+        .todo-date-shortcut {
+          padding: 8px 12px;
+          border: 1px solid var(--border);
+          background: var(--surface);
+          color: var(--foreground);
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 14px;
+          transition: all 0.2s ease;
+        }
+        
+        .todo-date-shortcut:hover {
+          background: var(--surface-hover);
+          border-color: var(--primary);
+        }
+        
+        .todo-date-footer {
+          padding: 16px 24px;
+          border-top: 1px solid var(--border);
+        }
+        
+        .todo-date-actions {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+        
+        .todo-date-btn {
+          padding: 8px 16px;
+          border: none;
+          border-radius: 6px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        
+        .todo-date-btn.primary {
+          background: var(--primary);
+          color: white;
+        }
+        
+        .todo-date-btn.primary:hover {
+          background: var(--primary-hover);
+        }
+        
+        .todo-date-btn.secondary {
+          background: var(--surface);
+          color: var(--foreground);
+          border: 1px solid var(--border);
+        }
+        
+        .todo-date-btn.secondary:hover {
           background: var(--surface-hover);
         }
         
@@ -1708,6 +1939,13 @@ export class TodoWidget {
               </svg>
               Date Created
             </div>
+            <div class="sort-option ${this.sortMode === 'dueDate' ? 'active' : ''}" data-sort="dueDate">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              Due Date
+            </div>
             <div class="sort-option ${this.sortMode === 'name' ? 'active' : ''}" data-sort="name">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -1867,6 +2105,37 @@ export class TodoWidget {
         </div>
       </div>
       
+      <!-- Due Date Modal -->
+      <div class="todo-date-modal" id="todoDateModal">
+        <div class="todo-date-content">
+          <div class="todo-date-header">
+            <h3 class="todo-date-title" id="todoDateTitle">Set Due Date</h3>
+            <button class="todo-date-close" id="todoDateClose">×</button>
+          </div>
+          <div class="todo-date-body">
+            <input 
+              type="date" 
+              class="todo-date-input" 
+              id="todoDateInput"
+            >
+            <div class="todo-date-shortcuts">
+              <button class="todo-date-shortcut" data-days="0">Today</button>
+              <button class="todo-date-shortcut" data-days="1">Tomorrow</button>
+              <button class="todo-date-shortcut" data-days="7">Next Week</button>
+              <button class="todo-date-shortcut" data-days="30">Next Month</button>
+            </div>
+          </div>
+          <div class="todo-date-footer">
+            <div class="todo-date-actions">
+              <button class="todo-date-btn secondary" id="todoDateClear">Clear Date</button>
+              <div style="flex: 1"></div>
+              <button class="todo-date-btn secondary" id="todoDateCancel">Cancel</button>
+              <button class="todo-date-btn primary" id="todoDateSave">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <!-- Settings Modal -->
       <div class="todo-settings-modal" id="todoSettingsModal">
         <div class="todo-settings-content">
@@ -1958,6 +2227,16 @@ export class TodoWidget {
     this.linkSave = todoContainer.querySelector('#todoLinkSave');
     this.currentLinkId = null;
     this.tempLinks = [];
+    
+    // Due date modal elements
+    this.dateModal = todoContainer.querySelector('#todoDateModal');
+    this.dateTitle = todoContainer.querySelector('#todoDateTitle');
+    this.dateClose = todoContainer.querySelector('#todoDateClose');
+    this.dateInput = todoContainer.querySelector('#todoDateInput');
+    this.dateClear = todoContainer.querySelector('#todoDateClear');
+    this.dateCancel = todoContainer.querySelector('#todoDateCancel');
+    this.dateSave = todoContainer.querySelector('#todoDateSave');
+    this.currentDateId = null;
     
     // Settings modal elements
     this.settingsModal = todoContainer.querySelector('#todoSettingsModal');
@@ -2060,6 +2339,9 @@ export class TodoWidget {
         <div class="todo-link-icon ${todo.links && todo.links.length > 0 ? 'has-links' : ''}" title="${todo.links && todo.links.length > 0 ? `${todo.links.length} link${todo.links.length > 1 ? 's' : ''} (right-click to edit)` : 'Add links'}">
           ${todo.links && todo.links.length > 0 ? '🔗' : '🔗'}
         </div>
+        <div class="todo-calendar-icon ${todo.dueDate ? 'has-date' : ''}" title="${todo.dueDate ? `Due: ${this.formatDueDate(todo.dueDate)}` : 'Set due date'}">
+          📅
+        </div>
         <input 
           type="checkbox" 
           class="todo-checkbox" 
@@ -2069,6 +2351,7 @@ export class TodoWidget {
           class="todo-text" 
           contenteditable="true"
         >${this.linkifyText(todo.text)}</span>
+        ${todo.dueDate ? `<span class="todo-due-date ${this.getDueDateClass(todo.dueDate, todo.completed)}">${this.formatDueDate(todo.dueDate)}</span>` : ''}
         <button class="todo-remove">×</button>
       `;
       
@@ -2101,6 +2384,16 @@ export class TodoWidget {
         
       case 'date':
         return sorted.sort((a, b) => b.createdAt - a.createdAt);
+        
+      case 'dueDate':
+        return sorted.sort((a, b) => {
+          // Todos without due dates go to the end
+          if (!a.dueDate && !b.dueDate) return (a.order || 0) - (b.order || 0);
+          if (!a.dueDate) return 1;
+          if (!b.dueDate) return -1;
+          // Sort by due date (earliest first)
+          return a.dueDate - b.dueDate;
+        });
         
       case 'name':
         return sorted.sort((a, b) => a.text.localeCompare(b.text));
@@ -2151,6 +2444,7 @@ export class TodoWidget {
         priority: todo.priority,
         note: todo.note || '',
         links: todo.links || [],
+        dueDate: todo.dueDate,
         completed: false  // Always save as uncompleted in template
       })),
       createdAt: Date.now()
@@ -2179,6 +2473,7 @@ export class TodoWidget {
         priority: item.priority || null,
         note: item.note || '',
         links: item.links || [],
+        dueDate: item.dueDate || null,
         createdAt: Date.now(),
         order: this.todos.length + index
       });
@@ -2283,6 +2578,7 @@ export class TodoWidget {
         priority: null,
         note: '',
         links: [],
+        dueDate: null,
         createdAt: Date.now(),
         order: Math.max(...this.todos.map(t => t.order || 0), -1) + 1
       };
@@ -2337,6 +2633,13 @@ export class TodoWidget {
       if (e.target.closest('.todo-link-icon')) {
         e.stopPropagation();
         this.handleLinkClick(todoId);
+        return;
+      }
+      
+      // Handle calendar icon click
+      if (e.target.closest('.todo-calendar-icon')) {
+        e.stopPropagation();
+        this.openDatePicker(todoId);
         return;
       }
       
@@ -2820,12 +3123,87 @@ export class TodoWidget {
         linkItem.remove();
       }
     });
+    
+    // Due date modal event handlers
+    this.dateClose.addEventListener('click', () => {
+      this.closeDatePicker();
+    });
+    
+    this.dateCancel.addEventListener('click', () => {
+      this.closeDatePicker();
+    });
+    
+    this.dateSave.addEventListener('click', () => {
+      this.saveDueDate();
+    });
+    
+    this.dateClear.addEventListener('click', () => {
+      this.clearDueDate();
+    });
+    
+    // Date shortcuts
+    this.dateModal.addEventListener('click', (e) => {
+      if (e.target.classList.contains('todo-date-shortcut')) {
+        const days = parseInt(e.target.dataset.days);
+        const date = new Date();
+        date.setDate(date.getDate() + days);
+        this.dateInput.value = date.toISOString().split('T')[0];
+      }
+      
+      // Close on background click
+      if (e.target === this.dateModal) {
+        this.closeDatePicker();
+      }
+    });
+    
+    // Keyboard shortcuts in date modal
+    this.dateInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        this.saveDueDate();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        this.closeDatePicker();
+      }
+    });
   }
   
   escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+  
+  formatDueDate(timestamp) {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[date.getMonth()]} ${date.getDate()}`;
+  }
+  
+  getDaysUntilDue(dueDate) {
+    if (!dueDate) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0);
+    const diffTime = due - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  }
+  
+  getDueDateClass(dueDate, completed) {
+    if (!dueDate) return '';
+    if (completed) return 'due-date-completed';
+    
+    const daysUntil = this.getDaysUntilDue(dueDate);
+    
+    if (daysUntil < 0) return 'due-date-overdue';
+    if (daysUntil === 0) return 'due-date-today';
+    if (daysUntil === 1) return 'due-date-tomorrow';
+    if (daysUntil <= 3) return 'due-date-soon';
+    if (daysUntil <= 7) return 'due-date-week';
+    return 'due-date-later';
   }
   
   parseMarkdown(text) {
@@ -3150,6 +3528,65 @@ export class TodoWidget {
     this.saveState();
     this.renderTodos();
     this.closeLinkEditor();
+  }
+  
+  // Due date management methods
+  openDatePicker(todoId) {
+    const todo = this.todos.find(t => t.id === todoId);
+    if (!todo) return;
+    
+    this.currentDateId = todoId;
+    this.dateTitle.textContent = `Due Date for: ${todo.text.substring(0, 50)}${todo.text.length > 50 ? '...' : ''}`;
+    
+    // Set current date if exists
+    if (todo.dueDate) {
+      const date = new Date(todo.dueDate);
+      this.dateInput.value = date.toISOString().split('T')[0];
+    } else {
+      this.dateInput.value = '';
+    }
+    
+    // Show modal
+    this.dateModal.classList.add('show');
+    this.dateInput.focus();
+  }
+  
+  closeDatePicker() {
+    this.dateModal.classList.remove('show');
+    this.currentDateId = null;
+    this.dateInput.value = '';
+  }
+  
+  saveDueDate() {
+    if (!this.currentDateId) return;
+    
+    const todo = this.todos.find(t => t.id === this.currentDateId);
+    if (!todo) return;
+    
+    const dateValue = this.dateInput.value;
+    if (dateValue) {
+      // Set time to noon to avoid timezone issues
+      const date = new Date(dateValue + 'T12:00:00');
+      todo.dueDate = date.getTime();
+    } else {
+      todo.dueDate = null;
+    }
+    
+    this.saveState();
+    this.renderTodos();
+    this.closeDatePicker();
+  }
+  
+  clearDueDate() {
+    if (!this.currentDateId) return;
+    
+    const todo = this.todos.find(t => t.id === this.currentDateId);
+    if (!todo) return;
+    
+    todo.dueDate = null;
+    this.saveState();
+    this.renderTodos();
+    this.closeDatePicker();
   }
   
   destroy() {

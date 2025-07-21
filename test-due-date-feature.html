@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Todo Due Date Feature</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .pass {
+            background: #d4f8d4;
+            color: #2e7d2e;
+        }
+        .fail {
+            background: #f8d4d4;
+            color: #7d2e2e;
+        }
+        .info {
+            background: #d4e8f8;
+            color: #2e5d7d;
+        }
+        code {
+            background: #e8e8e8;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+        .color-sample {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TabZen Todo Due Date Feature Test</h1>
+        
+        <div class="test-section">
+            <h2>Feature Summary</h2>
+            <div class="test-result info">
+                <strong>What's been implemented:</strong>
+                <ul>
+                    <li>✅ Added <code>dueDate</code> field to todo data structure</li>
+                    <li>✅ Migration for existing todos (sets dueDate: null)</li>
+                    <li>✅ Calendar icon (📅) appears after link icon</li>
+                    <li>✅ Due date display on right side in "MMM DD" format</li>
+                    <li>✅ Color-coded due dates based on urgency</li>
+                    <li>✅ Native date picker modal with shortcuts</li>
+                    <li>✅ Sort by due date option</li>
+                    <li>✅ Due dates preserved in templates and exports</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Color Coding System</h2>
+            <div class="test-result info">
+                <strong>Due date colors change based on urgency:</strong>
+                <ul>
+                    <li><span class="color-sample" style="background: #ef4444;"></span><strong>Red (#ef4444)</strong> - Overdue (past due date)</li>
+                    <li><span class="color-sample" style="background: #f97316;"></span><strong>Orange (#f97316)</strong> - Due today</li>
+                    <li><span class="color-sample" style="background: #eab308;"></span><strong>Yellow (#eab308)</strong> - Due tomorrow</li>
+                    <li><span class="color-sample" style="background: #fbbf24;"></span><strong>Light Yellow (#fbbf24)</strong> - Due in 2-3 days</li>
+                    <li><span class="color-sample" style="background: #84cc16;"></span><strong>Light Green (#84cc16)</strong> - Due in 4-7 days</li>
+                    <li><span class="color-sample" style="background: #22c55e;"></span><strong>Green (#22c55e)</strong> - Due in more than 7 days</li>
+                    <li><span class="color-sample" style="background: #e5e7eb;"></span><strong>Gray</strong> - Completed todos (with strikethrough)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>How to Test</h2>
+            <div class="test-result info">
+                <ol>
+                    <li><strong>Load the extension:</strong> Go to chrome://extensions and reload TabZen</li>
+                    <li><strong>Create a todo:</strong> Add a new todo item</li>
+                    <li><strong>Set a due date:</strong>
+                        <ul>
+                            <li>Click the calendar icon (📅)</li>
+                            <li>Use date picker or quick shortcuts (Today, Tomorrow, Next Week, Next Month)</li>
+                            <li>Click "Save"</li>
+                        </ul>
+                    </li>
+                    <li><strong>Observe color coding:</strong>
+                        <ul>
+                            <li>Set different due dates to see color changes</li>
+                            <li>Complete a todo to see grayed out due date</li>
+                        </ul>
+                    </li>
+                    <li><strong>Test sorting:</strong>
+                        <ul>
+                            <li>Click sort button</li>
+                            <li>Select "Due Date" option</li>
+                            <li>Todos will sort by due date (earliest first)</li>
+                        </ul>
+                    </li>
+                    <li><strong>Clear a due date:</strong>
+                        <ul>
+                            <li>Click calendar icon on todo with due date</li>
+                            <li>Click "Clear Date" button</li>
+                        </ul>
+                    </li>
+                    <li><strong>Export data:</strong> Due dates will be included in the export JSON</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>UI Layout</h2>
+            <div class="test-result info">
+                <strong>Todo item layout with due date:</strong>
+                <pre><code>[Priority] [📄] [🔗] [📅] [✓] Todo text                    Aug 21</code></pre>
+                <ul>
+                    <li>Calendar icon shows after other action icons</li>
+                    <li>Due date appears on the right side</li>
+                    <li>Due date has colored background based on urgency</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Expected Export Format</h2>
+            <div class="test-result info">
+                <pre><code>{
+  "todos": [
+    {
+      "id": "1234567890",
+      "text": "Submit project proposal",
+      "completed": false,
+      "priority": "high",
+      "note": "Include budget estimates",
+      "links": ["https://docs.google.com/project"],
+      "dueDate": 1724284800000,  // Unix timestamp
+      "createdAt": 1723420800000,
+      "order": 0
+    }
+  ]
+}</code></pre>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Technical Details</h2>
+            <div class="test-result info">
+                <strong>Files Modified:</strong>
+                <ul>
+                    <li><code>src/widgets/todo.js</code> - All changes in this file</li>
+                </ul>
+                <strong>Key Methods Added:</strong>
+                <ul>
+                    <li><code>formatDueDate()</code> - Formats timestamp to "MMM DD"</li>
+                    <li><code>getDaysUntilDue()</code> - Calculates days remaining</li>
+                    <li><code>getDueDateClass()</code> - Returns CSS class based on urgency</li>
+                    <li><code>openDatePicker()</code> - Opens date selection modal</li>
+                    <li><code>saveDueDate()</code> - Saves selected date to todo</li>
+                    <li><code>clearDueDate()</code> - Removes due date from todo</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
