@@ -14,6 +14,19 @@ export class VisionBoardWidget {
     this.currentTool = 'select';
     this.isModalOpen = false;
     
+    // Grid and alignment settings
+    this.gridEnabled = false;
+    this.gridSize = 20;
+    this.snapToGrid = true;
+    
+    // Clipboard for copy/paste
+    this.clipboard = null;
+    
+    // Undo/redo history
+    this.history = [];
+    this.historyStep = -1;
+    this.isRedoing = false;
+    
     // Template definitions
     this.templates = {
       career: {
@@ -72,6 +85,16 @@ export class VisionBoardWidget {
     this.boardSelector = document.getElementById('boardSelector');
     this.imageUpload = document.getElementById('imageUpload');
     this.boardManageDropdown = document.getElementById('boardManageDropdown');
+    
+    // Text formatting elements
+    this.textFormatToolbar = document.getElementById('textFormatToolbar');
+    this.fontFamilySelect = document.getElementById('fontFamily');
+    this.fontSizeSelect = document.getElementById('fontSize');
+    this.boldBtn = document.getElementById('boldBtn');
+    this.italicBtn = document.getElementById('italicBtn');
+    this.underlineBtn = document.getElementById('underlineBtn');
+    this.textColorInput = document.getElementById('textColor');
+    this.bgColorInput = document.getElementById('bgColor');
     
     console.log('Vision Board setupModal:', {
       modal: this.modal,
@@ -171,10 +194,71 @@ export class VisionBoardWidget {
       });
     });
     
+    // Copy button
+    const copyBtn = document.getElementById('copyTool');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', () => this.copySelected());
+    }
+    
+    // Paste button
+    const pasteBtn = document.getElementById('pasteTool');
+    if (pasteBtn) {
+      pasteBtn.addEventListener('click', () => this.paste());
+    }
+    
+    // Undo button
+    const undoBtn = document.getElementById('undoTool');
+    if (undoBtn) {
+      undoBtn.addEventListener('click', () => this.undo());
+    }
+    
+    // Redo button
+    const redoBtn = document.getElementById('redoTool');
+    if (redoBtn) {
+      redoBtn.addEventListener('click', () => this.redo());
+    }
+    
     // Delete button
     const deleteBtn = document.getElementById('deleteTool');
     if (deleteBtn) {
       deleteBtn.addEventListener('click', () => this.deleteSelected());
+    }
+    
+    // Alignment buttons
+    const alignLeftBtn = document.getElementById('alignLeftTool');
+    if (alignLeftBtn) {
+      alignLeftBtn.addEventListener('click', () => this.alignObjects('left'));
+    }
+    
+    const alignCenterBtn = document.getElementById('alignCenterTool');
+    if (alignCenterBtn) {
+      alignCenterBtn.addEventListener('click', () => this.alignObjects('center'));
+    }
+    
+    const alignRightBtn = document.getElementById('alignRightTool');
+    if (alignRightBtn) {
+      alignRightBtn.addEventListener('click', () => this.alignObjects('right'));
+    }
+    
+    const alignTopBtn = document.getElementById('alignTopTool');
+    if (alignTopBtn) {
+      alignTopBtn.addEventListener('click', () => this.alignObjects('top'));
+    }
+    
+    const alignMiddleBtn = document.getElementById('alignMiddleTool');
+    if (alignMiddleBtn) {
+      alignMiddleBtn.addEventListener('click', () => this.alignObjects('middle'));
+    }
+    
+    const alignBottomBtn = document.getElementById('alignBottomTool');
+    if (alignBottomBtn) {
+      alignBottomBtn.addEventListener('click', () => this.alignObjects('bottom'));
+    }
+    
+    // Grid toggle button
+    const gridToggleBtn = document.getElementById('gridToggle');
+    if (gridToggleBtn) {
+      gridToggleBtn.addEventListener('click', () => this.toggleGrid());
     }
     
     // Image upload
@@ -200,12 +284,53 @@ export class VisionBoardWidget {
           e.preventDefault();
           this.saveBoard();
         }
-        if (e.ctrlKey && e.key === 'z') {
+        if (e.ctrlKey && e.key === 'c') {
           e.preventDefault();
-          // TODO: Implement undo
+          this.copySelected();
+        }
+        if (e.ctrlKey && e.key === 'v') {
+          e.preventDefault();
+          this.paste();
+        }
+        if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+          e.preventDefault();
+          this.undo();
+        }
+        if (e.ctrlKey && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+          e.preventDefault();
+          this.redo();
         }
       }
     });
+    
+    // Text formatting listeners
+    if (this.fontFamilySelect) {
+      this.fontFamilySelect.addEventListener('change', (e) => this.updateTextFormat('fontFamily', e.target.value));
+    }
+    
+    if (this.fontSizeSelect) {
+      this.fontSizeSelect.addEventListener('change', (e) => this.updateTextFormat('fontSize', parseInt(e.target.value)));
+    }
+    
+    if (this.boldBtn) {
+      this.boldBtn.addEventListener('click', () => this.toggleTextFormat('fontWeight', 'bold', 'normal'));
+    }
+    
+    if (this.italicBtn) {
+      this.italicBtn.addEventListener('click', () => this.toggleTextFormat('fontStyle', 'italic', 'normal'));
+    }
+    
+    if (this.underlineBtn) {
+      this.underlineBtn.addEventListener('click', () => this.toggleTextFormat('underline', true, false));
+    }
+    
+    if (this.textColorInput) {
+      this.textColorInput.addEventListener('change', (e) => this.updateTextFormat('fill', e.target.value));
+    }
+    
+    if (this.bgColorInput) {
+      this.bgColorInput.addEventListener('change', (e) => this.updateTextFormat('textBackgroundColor', e.target.value));
+    }
   }
   
   openModal() {
@@ -293,10 +418,30 @@ export class VisionBoardWidget {
         // Canvas click events for tools
         this.canvas.on('mouse:down', (e) => this.handleCanvasClick(e));
         
-        // Auto-save on object modification
-        this.canvas.on('object:modified', () => {
+        // Track history and auto-save on object changes
+        this.canvas.on('object:added', () => {
+          if (!this.isRedoing) {
+            this.saveHistory();
+          }
           this.debouncedSave();
         });
+        
+        this.canvas.on('object:removed', () => {
+          if (!this.isRedoing) {
+            this.saveHistory();
+          }
+          this.debouncedSave();
+        });
+        
+        this.canvas.on('object:modified', () => {
+          this.saveHistory();
+          this.debouncedSave();
+        });
+        
+        // Handle text selection
+        this.canvas.on('selection:created', () => this.handleSelection());
+        this.canvas.on('selection:updated', () => this.handleSelection());
+        this.canvas.on('selection:cleared', () => this.hideTextFormatToolbar());
       } catch (error) {
         console.error('Error creating Fabric.js canvas:', error);
         return;
@@ -329,6 +474,7 @@ export class VisionBoardWidget {
   closeModal() {
     this.isModalOpen = false;
     this.modal.style.display = 'none';
+    this.hideTextFormatToolbar();
     this.saveBoard();
   }
   
@@ -451,10 +597,18 @@ export class VisionBoardWidget {
       if (board.canvas) {
         this.canvas.loadFromJSON(board.canvas, () => {
           this.canvas.renderAll();
+          // Initialize history with current state
+          this.history = [JSON.stringify(this.canvas.toJSON())];
+          this.historyStep = 0;
+          this.updateUndoRedoButtons();
         });
       } else {
         this.canvas.backgroundColor = '#ffffff';
         this.canvas.renderAll();
+        // Initialize history with empty state
+        this.history = [JSON.stringify(this.canvas.toJSON())];
+        this.historyStep = 0;
+        this.updateUndoRedoButtons();
       }
     }
   }
@@ -474,10 +628,21 @@ export class VisionBoardWidget {
   }
   
   exportBoard() {
+    // Temporarily hide grid lines for export
+    const wasGridEnabled = this.gridEnabled;
+    if (wasGridEnabled) {
+      this.removeGrid();
+    }
+    
     const dataURL = this.canvas.toDataURL({
       format: 'png',
       multiplier: 2
     });
+    
+    // Restore grid if it was enabled
+    if (wasGridEnabled) {
+      this.drawGrid();
+    }
     
     const link = document.createElement('a');
     link.download = `vision-board-${Date.now()}.png`;
@@ -1236,6 +1401,337 @@ export class VisionBoardWidget {
       originX: 'center'
     });
     canvas.add(quote);
+  }
+  
+  alignObjects(alignment) {
+    const activeObjects = this.canvas.getActiveObjects();
+    if (activeObjects.length === 0) return;
+    
+    const selection = this.canvas.getActiveObject();
+    if (!selection || selection.type !== 'activeSelection') return;
+    
+    const boundingRect = selection.getBoundingRect();
+    
+    activeObjects.forEach(obj => {
+      switch (alignment) {
+        case 'left':
+          obj.set({ left: boundingRect.left });
+          break;
+        case 'center':
+          obj.set({ left: boundingRect.left + boundingRect.width / 2 - obj.width * obj.scaleX / 2 });
+          break;
+        case 'right':
+          obj.set({ left: boundingRect.left + boundingRect.width - obj.width * obj.scaleX });
+          break;
+        case 'top':
+          obj.set({ top: boundingRect.top });
+          break;
+        case 'middle':
+          obj.set({ top: boundingRect.top + boundingRect.height / 2 - obj.height * obj.scaleY / 2 });
+          break;
+        case 'bottom':
+          obj.set({ top: boundingRect.top + boundingRect.height - obj.height * obj.scaleY });
+          break;
+      }
+      obj.setCoords();
+    });
+    
+    this.canvas.renderAll();
+    this.debouncedSave();
+  }
+  
+  toggleGrid() {
+    this.gridEnabled = !this.gridEnabled;
+    const gridToggleBtn = document.getElementById('gridToggle');
+    
+    if (this.gridEnabled) {
+      gridToggleBtn?.classList.add('active');
+      this.drawGrid();
+      this.enableSnapToGrid();
+    } else {
+      gridToggleBtn?.classList.remove('active');
+      this.removeGrid();
+      this.disableSnapToGrid();
+    }
+  }
+  
+  drawGrid() {
+    if (!this.canvas) return;
+    
+    const gridSize = this.gridSize;
+    const width = this.canvas.width;
+    const height = this.canvas.height;
+    
+    // Remove existing grid if any
+    this.removeGrid();
+    
+    // Create grid lines
+    for (let i = 0; i < width / gridSize; i++) {
+      const line = new fabric.Line([i * gridSize, 0, i * gridSize, height], {
+        stroke: '#e0e0e0',
+        strokeWidth: 1,
+        selectable: false,
+        evented: false,
+        excludeFromExport: true,
+        data: { isGrid: true }
+      });
+      this.canvas.add(line);
+      this.canvas.sendToBack(line);
+    }
+    
+    for (let i = 0; i < height / gridSize; i++) {
+      const line = new fabric.Line([0, i * gridSize, width, i * gridSize], {
+        stroke: '#e0e0e0',
+        strokeWidth: 1,
+        selectable: false,
+        evented: false,
+        excludeFromExport: true,
+        data: { isGrid: true }
+      });
+      this.canvas.add(line);
+      this.canvas.sendToBack(line);
+    }
+    
+    this.canvas.renderAll();
+  }
+  
+  removeGrid() {
+    if (!this.canvas) return;
+    
+    const gridLines = this.canvas.getObjects().filter(obj => obj.data && obj.data.isGrid);
+    gridLines.forEach(line => this.canvas.remove(line));
+    this.canvas.renderAll();
+  }
+  
+  enableSnapToGrid() {
+    if (!this.canvas) return;
+    
+    const gridSize = this.gridSize;
+    
+    this.canvas.on('object:moving', (e) => {
+      if (!this.snapToGrid) return;
+      
+      const obj = e.target;
+      const left = Math.round(obj.left / gridSize) * gridSize;
+      const top = Math.round(obj.top / gridSize) * gridSize;
+      
+      obj.set({
+        left: left,
+        top: top
+      });
+    });
+  }
+  
+  disableSnapToGrid() {
+    if (!this.canvas) return;
+    this.canvas.off('object:moving');
+  }
+  
+  copySelected() {
+    const activeObject = this.canvas.getActiveObject();
+    if (!activeObject) return;
+    
+    // Clone the object(s)
+    activeObject.clone((cloned) => {
+      this.clipboard = cloned;
+      
+      // Visual feedback
+      const copyBtn = document.getElementById('copyTool');
+      if (copyBtn) {
+        copyBtn.classList.add('success');
+        setTimeout(() => copyBtn.classList.remove('success'), 300);
+      }
+    });
+  }
+  
+  paste() {
+    if (!this.clipboard) return;
+    
+    this.clipboard.clone((clonedObj) => {
+      this.canvas.discardActiveObject();
+      
+      // Set position offset
+      clonedObj.set({
+        left: clonedObj.left + 20,
+        top: clonedObj.top + 20,
+        evented: true,
+      });
+      
+      if (clonedObj.type === 'activeSelection') {
+        // Handle multiple objects
+        clonedObj.canvas = this.canvas;
+        clonedObj.forEachObject((obj) => {
+          this.canvas.add(obj);
+        });
+        clonedObj.setCoords();
+      } else {
+        this.canvas.add(clonedObj);
+      }
+      
+      // Update clipboard reference for continued pasting
+      this.clipboard = clonedObj;
+      
+      // Set the new object as active
+      this.canvas.setActiveObject(clonedObj);
+      this.canvas.requestRenderAll();
+      this.debouncedSave();
+      
+      // Visual feedback
+      const pasteBtn = document.getElementById('pasteTool');
+      if (pasteBtn) {
+        pasteBtn.classList.add('success');
+        setTimeout(() => pasteBtn.classList.remove('success'), 300);
+      }
+    });
+  }
+  
+  saveHistory() {
+    if (!this.canvas) return;
+    
+    // Clear any redo history when new change is made
+    if (this.historyStep < this.history.length - 1) {
+      this.history = this.history.slice(0, this.historyStep + 1);
+    }
+    
+    // Save current state
+    const currentState = JSON.stringify(this.canvas.toJSON());
+    this.history.push(currentState);
+    
+    // Limit history size to prevent memory issues
+    if (this.history.length > 50) {
+      this.history.shift();
+    } else {
+      this.historyStep++;
+    }
+    
+    this.updateUndoRedoButtons();
+  }
+  
+  undo() {
+    if (this.historyStep > 0) {
+      this.historyStep--;
+      this.isRedoing = true;
+      
+      const state = this.history[this.historyStep];
+      this.canvas.loadFromJSON(state, () => {
+        this.canvas.renderAll();
+        this.isRedoing = false;
+        this.updateUndoRedoButtons();
+        this.debouncedSave();
+      });
+    }
+  }
+  
+  redo() {
+    if (this.historyStep < this.history.length - 1) {
+      this.historyStep++;
+      this.isRedoing = true;
+      
+      const state = this.history[this.historyStep];
+      this.canvas.loadFromJSON(state, () => {
+        this.canvas.renderAll();
+        this.isRedoing = false;
+        this.updateUndoRedoButtons();
+        this.debouncedSave();
+      });
+    }
+  }
+  
+  updateUndoRedoButtons() {
+    const undoBtn = document.getElementById('undoTool');
+    const redoBtn = document.getElementById('redoTool');
+    
+    if (undoBtn) {
+      undoBtn.disabled = this.historyStep <= 0;
+    }
+    
+    if (redoBtn) {
+      redoBtn.disabled = this.historyStep >= this.history.length - 1;
+    }
+  }
+  
+  handleSelection() {
+    const activeObject = this.canvas.getActiveObject();
+    
+    if (activeObject && activeObject.type === 'text') {
+      this.showTextFormatToolbar(activeObject);
+    } else {
+      this.hideTextFormatToolbar();
+    }
+  }
+  
+  showTextFormatToolbar(textObject) {
+    if (!this.textFormatToolbar) return;
+    
+    this.textFormatToolbar.style.display = 'flex';
+    
+    // Update toolbar values based on selected text
+    if (this.fontFamilySelect) {
+      this.fontFamilySelect.value = textObject.fontFamily || 'Arial';
+    }
+    
+    if (this.fontSizeSelect) {
+      this.fontSizeSelect.value = textObject.fontSize || 20;
+    }
+    
+    if (this.boldBtn) {
+      this.boldBtn.classList.toggle('active', textObject.fontWeight === 'bold');
+    }
+    
+    if (this.italicBtn) {
+      this.italicBtn.classList.toggle('active', textObject.fontStyle === 'italic');
+    }
+    
+    if (this.underlineBtn) {
+      this.underlineBtn.classList.toggle('active', textObject.underline === true);
+    }
+    
+    if (this.textColorInput) {
+      this.textColorInput.value = textObject.fill || '#000000';
+    }
+    
+    if (this.bgColorInput) {
+      this.bgColorInput.value = textObject.textBackgroundColor || '#ffffff';
+    }
+  }
+  
+  hideTextFormatToolbar() {
+    if (this.textFormatToolbar) {
+      this.textFormatToolbar.style.display = 'none';
+    }
+  }
+  
+  updateTextFormat(property, value) {
+    const activeObject = this.canvas.getActiveObject();
+    
+    if (activeObject && activeObject.type === 'text') {
+      activeObject.set(property, value);
+      this.canvas.renderAll();
+      this.saveHistory();
+      this.debouncedSave();
+    }
+  }
+  
+  toggleTextFormat(property, activeValue, inactiveValue) {
+    const activeObject = this.canvas.getActiveObject();
+    
+    if (activeObject && activeObject.type === 'text') {
+      const currentValue = activeObject.get(property);
+      const newValue = currentValue === activeValue ? inactiveValue : activeValue;
+      activeObject.set(property, newValue);
+      this.canvas.renderAll();
+      this.saveHistory();
+      this.debouncedSave();
+      
+      // Update button state
+      const btn = property === 'fontWeight' ? this.boldBtn :
+                  property === 'fontStyle' ? this.italicBtn :
+                  property === 'underline' ? this.underlineBtn : null;
+      
+      if (btn) {
+        btn.classList.toggle('active', newValue === activeValue);
+      }
+    }
   }
   
   destroy() {
