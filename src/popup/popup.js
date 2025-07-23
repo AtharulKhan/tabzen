@@ -184,12 +184,22 @@ async function saveTodo() {
     elements.saveTodo.disabled = true;
     elements.saveTodo.textContent = 'Saving...';
     
-    const response = await sendMessage({ 
+    // Try messaging first with short timeout
+    const messagePromise = sendMessage({ 
       action: 'quickAddTodo', 
       todoData 
     });
+    const timeoutPromise = new Promise((resolve) => 
+      setTimeout(() => resolve({ timeout: true }), 1000)
+    );
     
-    if (response && response.success) {
+    const response = await Promise.race([messagePromise, timeoutPromise]);
+    
+    if (response && response.timeout) {
+      // Fallback: Save directly to storage
+      await saveDirectlyToStorage(todoData);
+      window.close();
+    } else if (response && response.success) {
       // Success - close popup
       window.close();
     } else {
@@ -200,6 +210,57 @@ async function saveTodo() {
     alert('Failed to save todo. Please try again.');
     elements.saveTodo.disabled = false;
     elements.saveTodo.textContent = 'Save Todo';
+  }
+}
+
+// Save directly to storage (fallback)
+async function saveDirectlyToStorage(todoData) {
+  try {
+    // Get current storage data
+    const data = await chrome.storage.local.get(['currentSpaceId', 'widgets']);
+    const currentSpaceId = data.currentSpaceId || 'space-1752873684875-2i7c4';
+    const widgetsKey = `widgets-${currentSpaceId}`;
+    
+    // Get widgets for current space
+    const spaceData = await chrome.storage.local.get(widgetsKey);
+    const widgets = spaceData[widgetsKey] || {};
+    
+    // Find the widget
+    const widget = widgets[todoData.widgetId];
+    if (!widget) {
+      throw new Error('Widget not found');
+    }
+    
+    // Create new todo
+    const newTodo = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      text: todoData.text,
+      completed: false,
+      priority: todoData.priority || null,
+      note: todoData.note || '',
+      links: todoData.links || [],
+      url: todoData.url || null,
+      pageTitle: todoData.pageTitle || null,
+      favicon: todoData.favicon || null,
+      dueDate: todoData.dueDate || null,
+      createdAt: Date.now(),
+      source: todoData.source || 'popup',
+      order: (widget.todos || []).length
+    };
+    
+    // Add to widget's todos
+    if (!widget.todos) widget.todos = [];
+    widget.todos.unshift(newTodo);
+    widget.lastUpdated = Date.now();
+    
+    // Save back to storage
+    widgets[todoData.widgetId] = widget;
+    await chrome.storage.local.set({ [widgetsKey]: widgets });
+    
+    console.log('Todo saved directly to storage');
+  } catch (error) {
+    console.error('Failed to save directly:', error);
+    throw error;
   }
 }
 
