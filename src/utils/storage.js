@@ -75,6 +75,11 @@ export class StorageManager {
     }
   }
   
+  // Invalidate cache for a specific key
+  invalidateCache(key) {
+    this.cache.delete(key);
+  }
+  
   // Get all widgets data
   async getWidgets() {
     return await this.get('widgets', {});
@@ -207,6 +212,36 @@ export class StorageManager {
     templates.push(newTemplate);
     await this.set('dashboardTemplates', templates, true);
     return newTemplate;
+  }
+  
+  // Todo Template Management Methods
+  async getTodoTemplates() {
+    return await this.get('todoTemplates', []);
+  }
+  
+  async saveTodoTemplate(template) {
+    const templates = await this.getTodoTemplates();
+    templates.push(template);
+    await this.set('todoTemplates', templates, true);
+    return template;
+  }
+  
+  async updateTodoTemplate(templateId, updates) {
+    const templates = await this.getTodoTemplates();
+    const index = templates.findIndex(t => t.id === templateId);
+    if (index !== -1) {
+      templates[index] = { ...templates[index], ...updates };
+      await this.set('todoTemplates', templates, true);
+      return templates[index];
+    }
+    return null;
+  }
+  
+  async deleteTodoTemplate(templateId) {
+    const templates = await this.getTodoTemplates();
+    const filtered = templates.filter(t => t.id !== templateId);
+    await this.set('todoTemplates', filtered, true);
+    return filtered.length < templates.length;
   }
   
   async updateTemplate(templateId, updates) {

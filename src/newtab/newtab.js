@@ -2166,7 +2166,7 @@ class TabZenApp {
             name,
             items: tasks
           };
-          await this.storage.set('todoTemplates', standaloneTemplates);
+          await this.storage.set('todoTemplates', standaloneTemplates, true);
           templateUpdated = true;
         }
       }
@@ -2201,7 +2201,11 @@ class TabZenApp {
         // No todo widget exists, save to standalone storage
         const existingTemplates = await this.storage.get('todoTemplates', []);
         existingTemplates.push(template);
-        await this.storage.set('todoTemplates', existingTemplates);
+        await this.storage.set('todoTemplates', existingTemplates, true);
+        console.log('Saved new template to standalone storage:', {
+          template: template,
+          totalTemplates: existingTemplates.length
+        });
       }
     }
     
@@ -2305,7 +2309,7 @@ class TabZenApp {
     if (standaloneTemplates.length > 0) {
       const filtered = standaloneTemplates.filter(t => t.id !== templateId);
       if (filtered.length < standaloneTemplates.length) {
-        await this.storage.set('todoTemplates', filtered);
+        await this.storage.set('todoTemplates', filtered, true);
         templateDeleted = true;
       }
     }

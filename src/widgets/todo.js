@@ -22,10 +22,17 @@ export class TodoWidget {
     this.attachListeners();
     this.registerCommands();
     
-    // Force initial template render
+    // Force initial template render after DOM is ready
     setTimeout(() => {
+      console.log('Initial template render:', {
+        templateList: this.templateList,
+        templatesCount: this.templates.length,
+        templates: this.templates
+      });
       if (this.templateList) {
         this.renderTemplates();
+      } else {
+        console.error('Template list not found during initial render');
       }
     }, 100);
     
@@ -63,16 +70,128 @@ export class TodoWidget {
   
   async loadState() {
     this.todos = this.savedData.todos || [];
-    this.templates = this.savedData.templates || [];
+    this.templates = [];
     this.sortMode = this.savedData.sortMode || 'manual';
     
-    // Debug logging for templates
-    console.log('Loading todo widget state:', {
+    // First, load widget-specific templates
+    const widgetTemplates = this.savedData.templates || [];
+    console.log('Loading widget templates:', {
       widgetId: this.id,
-      todosCount: this.todos.length,
-      templatesCount: this.templates.length,
-      templates: this.templates
+      savedData: this.savedData,
+      widgetTemplates: widgetTemplates
     });
+    
+    // Load templates from ALL todo widgets in the current space
+    let allSpaceTemplates = [];
+    
+    try {
+      // Get current space ID
+      const currentSpaceResult = await chrome.storage.local.get('currentSpaceId');
+      const currentSpaceId = currentSpaceResult.currentSpaceId;
+      
+      if (currentSpaceId) {
+        // Get all widgets in current space
+        const widgetsResult = await chrome.storage.local.get(`widgets-${currentSpaceId}`);
+        const widgets = widgetsResult[`widgets-${currentSpaceId}`] || {};
+        
+        console.log('Loading templates from all todo widgets in space:', {
+          spaceId: currentSpaceId,
+          widgetCount: Object.keys(widgets).length,
+          currentWidgetId: this.id
+        });
+        
+        // Collect templates from all todo widgets (excluding current widget to avoid duplicates)
+        Object.keys(widgets).forEach(widgetId => {
+          if (widgetId.startsWith('todo-') && widgetId !== this.id && widgets[widgetId].templates) {
+            const otherWidgetTemplates = widgets[widgetId].templates;
+            console.log(`Found ${otherWidgetTemplates.length} templates in ${widgetId}`);
+            allSpaceTemplates.push(...otherWidgetTemplates);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error loading templates from other widgets:', error);
+    }
+    
+    // Also load standalone templates
+    let standaloneTemplates = [];
+    try {
+      // Check if storage has the get method
+      if (this.storage && typeof this.storage.get === 'function') {
+        // Invalidate cache to ensure we get fresh data
+        if (this.storage.invalidateCache) {
+          this.storage.invalidateCache('todoTemplates');
+        }
+        // Use StorageManager
+        standaloneTemplates = await this.storage.get('todoTemplates', []);
+      } else {
+        // Fallback to direct Chrome storage access
+        const result = await chrome.storage.local.get('todoTemplates');
+        standaloneTemplates = result.todoTemplates || [];
+      }
+    } catch (error) {
+      console.error('Error loading standalone templates:', error);
+    }
+    
+    console.log('Template sources:', {
+      fromCurrentWidget: widgetTemplates.length,
+      fromOtherWidgetsInSpace: allSpaceTemplates.length,
+      fromStandalone: standaloneTemplates.length
+    });
+    
+    // Merge all templates, avoiding duplicates by ID
+    try {
+      const allTemplates = [...widgetTemplates];
+      const templateIds = new Set(widgetTemplates.map(t => t.id));
+      
+      // Add templates from other widgets in the space
+      allSpaceTemplates.forEach(template => {
+        if (template && template.id && template.name && Array.isArray(template.items)) {
+          if (!templateIds.has(template.id)) {
+            allTemplates.push(template);
+            templateIds.add(template.id);
+          }
+        }
+      });
+      
+      // Add standalone templates
+      standaloneTemplates.forEach(template => {
+        // Validate template structure before adding
+        if (template && template.id && template.name && Array.isArray(template.items)) {
+          if (!templateIds.has(template.id)) {
+            allTemplates.push(template);
+            templateIds.add(template.id);
+          }
+        } else {
+          console.warn('Invalid template structure:', template);
+        }
+      });
+      
+      // Validate all templates have required fields
+      this.templates = allTemplates.filter(template => {
+        const isValid = template && 
+                      template.id && 
+                      template.name && 
+                      Array.isArray(template.items) &&
+                      template.createdAt;
+        if (!isValid) {
+          console.warn('Filtering out invalid template:', template);
+        }
+        return isValid;
+      });
+      
+      console.log('Final templates loaded:', {
+        widgetId: this.id,
+        totalCount: this.templates.length,
+        widgetTemplateCount: widgetTemplates.length,
+        standaloneTemplateCount: standaloneTemplates.length,
+        finalTemplates: this.templates
+      });
+    } catch (error) {
+      console.error('Error loading templates:', error);
+      // Fall back to widget templates only
+      this.templates = widgetTemplates;
+    }
     
     // Ensure all todos have an order field, links array, and dueDate
     let needsOrderUpdate = false;
@@ -94,56 +213,58 @@ export class TodoWidget {
     if (needsOrderUpdate) {
       await this.saveState();
     }
-    
-    // Also load templates from standalone storage (created in main settings)
-    try {
-      const result = await chrome.storage.local.get('todoTemplates');
-      const standaloneTemplates = result.todoTemplates || [];
-      
-      console.log('Loading standalone templates:', {
-        count: standaloneTemplates.length,
-        templates: standaloneTemplates
-      });
-      
-      // Merge templates, avoiding duplicates by ID
-      const templateIds = new Set(this.templates.map(t => t.id));
-      standaloneTemplates.forEach(template => {
-        if (!templateIds.has(template.id)) {
-          this.templates.push(template);
-        }
-      });
-      
-      console.log('Total templates after merge:', this.templates.length);
-    } catch (error) {
-      console.error('Error loading standalone templates:', error);
-    }
   }
   
   async saveState() {
     // Save all templates with this widget (both widget and standalone)
     // This ensures templates persist even if standalone storage fails
-    console.log('Saving widget state:', {
-      widgetId: this.id,
-      todosCount: this.todos.length,
-      templatesCount: this.templates.length
-    });
-    
-    await this.storage.saveWidget(this.id, {
+    const dataToSave = {
       todos: this.todos,
       templates: this.templates,
       sortMode: this.sortMode
+    };
+    
+    console.log('Saving widget state:', {
+      widgetId: this.id,
+      todosCount: this.todos.length,
+      templatesCount: this.templates.length,
+      templates: this.templates,
+      dataToSave: dataToSave
     });
+    
+    await this.storage.saveWidget(this.id, dataToSave);
+    
+    // Update local savedData reference
+    this.savedData = dataToSave;
     
     // Also update standalone templates storage
     try {
-      const standaloneTemplates = this.templates.filter(t => 
-        // Save all templates to standalone storage for global access
-        true
-      );
-      
-      if (standaloneTemplates.length > 0) {
-        await chrome.storage.local.set({ todoTemplates: standaloneTemplates });
-        console.log('Saved standalone templates:', standaloneTemplates.length);
+      if (this.storage && typeof this.storage.set === 'function') {
+        // Use StorageManager
+        if (this.templates.length > 0) {
+          await this.storage.set('todoTemplates', this.templates, true);
+          console.log('Saved templates via StorageManager:', {
+            count: this.templates.length,
+            templates: this.templates
+          });
+        } else if (this.storage.remove) {
+          // Clear standalone templates if none exist
+          await this.storage.remove('todoTemplates');
+          console.log('Cleared templates via StorageManager');
+        }
+      } else {
+        // Fallback to direct Chrome storage
+        if (this.templates.length > 0) {
+          await chrome.storage.local.set({ todoTemplates: this.templates });
+          console.log('Saved templates to Chrome storage directly:', {
+            count: this.templates.length,
+            templates: this.templates
+          });
+        } else {
+          // Clear standalone templates if none exist
+          await chrome.storage.local.remove('todoTemplates');
+          console.log('Cleared Chrome storage templates directly');
+        }
       }
     } catch (error) {
       console.error('Error saving standalone templates:', error);
@@ -2500,10 +2621,14 @@ export class TodoWidget {
   }
   
   renderTemplates() {
-    console.log('Rendering templates:', {
-      count: this.templates.length,
+    console.log('renderTemplates called:', {
+      count: this.templates?.length || 0,
       templateList: this.templateList,
-      templates: this.templates
+      templateDropdown: this.templateDropdown,
+      templates: this.templates,
+      templateListExists: !!this.templateList,
+      templateDropdownExists: !!this.templateDropdown,
+      isDropdownVisible: this.showTemplateMenu
     });
     
     if (!this.templateList) {
@@ -2513,7 +2638,7 @@ export class TodoWidget {
     
     this.templateList.innerHTML = '';
     
-    if (this.templates.length === 0) {
+    if (!this.templates || this.templates.length === 0) {
       this.templateList.innerHTML = `
         <div class="template-empty">
           No templates yet. Save your current checklist as a template to reuse it later.
@@ -2609,10 +2734,18 @@ export class TodoWidget {
     } else {
       // Must be a standalone template, remove from standalone storage
       try {
-        const result = await chrome.storage.local.get('todoTemplates');
-        const standaloneTemplates = result.todoTemplates || [];
-        const updatedTemplates = standaloneTemplates.filter(t => t.id !== templateId);
-        await chrome.storage.local.set({ todoTemplates: updatedTemplates });
+        if (this.storage && typeof this.storage.get === 'function') {
+          // Use StorageManager
+          const standaloneTemplates = await this.storage.get('todoTemplates', []);
+          const updatedTemplates = standaloneTemplates.filter(t => t.id !== templateId);
+          await this.storage.set('todoTemplates', updatedTemplates, true);
+        } else {
+          // Fallback to direct Chrome storage
+          const result = await chrome.storage.local.get('todoTemplates');
+          const standaloneTemplates = result.todoTemplates || [];
+          const updatedTemplates = standaloneTemplates.filter(t => t.id !== templateId);
+          await chrome.storage.local.set({ todoTemplates: updatedTemplates });
+        }
       } catch (error) {
         console.error('Error deleting standalone template:', error);
       }
@@ -2907,12 +3040,100 @@ export class TodoWidget {
     });
     
     // Template button toggle
-    this.templateBtn.addEventListener('click', (e) => {
+    this.templateBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       console.log('Template button clicked', {
         showTemplateMenu: this.showTemplateMenu,
-        templatesCount: this.templates.length
+        templatesCount: this.templates.length,
+        templates: this.templates
       });
+      
+      // Re-load templates from storage to ensure we have the latest
+      if (!this.showTemplateMenu) {
+        try {
+          // Clear cache to force fresh load
+          if (this.storage && this.storage.invalidateCache) {
+            this.storage.invalidateCache('todoTemplates');
+          }
+          
+          // Reload templates from all sources
+          const widgetTemplates = this.savedData.templates || [];
+          let allSpaceTemplates = [];
+          let standaloneTemplates = [];
+          
+          // Get templates from all todo widgets in current space
+          try {
+            const currentSpaceResult = await chrome.storage.local.get('currentSpaceId');
+            const currentSpaceId = currentSpaceResult.currentSpaceId;
+            
+            if (currentSpaceId) {
+              const widgetsResult = await chrome.storage.local.get(`widgets-${currentSpaceId}`);
+              const widgets = widgetsResult[`widgets-${currentSpaceId}`] || {};
+              
+              // Collect templates from other todo widgets
+              Object.keys(widgets).forEach(widgetId => {
+                if (widgetId.startsWith('todo-') && widgetId !== this.id && widgets[widgetId].templates) {
+                  allSpaceTemplates.push(...widgets[widgetId].templates);
+                }
+              });
+            }
+          } catch (error) {
+            console.error('Error loading templates from other widgets:', error);
+          }
+          
+          // Get standalone templates from storage
+          if (this.storage && typeof this.storage.get === 'function') {
+            standaloneTemplates = await this.storage.get('todoTemplates', []);
+          } else {
+            const result = await chrome.storage.local.get('todoTemplates');
+            standaloneTemplates = result.todoTemplates || [];
+          }
+          
+          console.log('Templates loaded from all sources:', {
+            fromCurrentWidget: widgetTemplates.length,
+            fromOtherWidgets: allSpaceTemplates.length,
+            fromStandalone: standaloneTemplates.length
+          });
+          
+          // Merge templates from all sources
+          const allTemplates = [...widgetTemplates];
+          const templateIds = new Set(widgetTemplates.map(t => t.id));
+          
+          // Add templates from other widgets
+          allSpaceTemplates.forEach(template => {
+            if (template && template.id && !templateIds.has(template.id)) {
+              allTemplates.push(template);
+              templateIds.add(template.id);
+            }
+          });
+          
+          // Add standalone templates
+          standaloneTemplates.forEach(template => {
+            if (template && template.id && template.name && Array.isArray(template.items)) {
+              if (!templateIds.has(template.id)) {
+                allTemplates.push(template);
+                templateIds.add(template.id);
+              }
+            }
+          });
+          
+          // Filter out any invalid templates
+          this.templates = allTemplates.filter(template => {
+            return template && template.id && template.name && 
+                   Array.isArray(template.items) && template.createdAt;
+          });
+          
+          console.log('Reloaded templates on dropdown open:', {
+            count: this.templates.length,
+            templates: this.templates,
+            widgetTemplatesCount: widgetTemplates.length,
+            standaloneTemplatesCount: standaloneTemplates.length
+          });
+        } catch (error) {
+          console.error('Error reloading templates:', error);
+        }
+      }
+      
       this.showTemplateMenu = !this.showTemplateMenu;
       this.templateDropdown.classList.toggle('show', this.showTemplateMenu);
       

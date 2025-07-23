@@ -1,0 +1,1 @@
+chrome.storage.local.get(null, (result) => { console.log('All keys:', Object.keys(result)); console.log('Full data:', result); });

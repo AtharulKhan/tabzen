@@ -126,6 +126,21 @@ export class WidgetManager {
           getWidget: async (id) => {
             const widgets = await this.spaceManager.getWidgetsForSpace();
             return widgets[id] || null;
+          },
+          // Add the missing storage methods for todo widget
+          get: async (key, defaultValue = null) => {
+            return await this.storage.get(key, defaultValue);
+          },
+          set: async (key, value, immediate = false) => {
+            return await this.storage.set(key, value, immediate);
+          },
+          remove: async (key) => {
+            return await this.storage.remove(key);
+          },
+          invalidateCache: (key) => {
+            if (this.storage.invalidateCache) {
+              this.storage.invalidateCache(key);
+            }
           }
         },
         eventBus: this.eventBus,
