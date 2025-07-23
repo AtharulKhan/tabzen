@@ -111,6 +111,45 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
       return true; // Keep channel open for async response
       
+    case 'quickAddTodo':
+      quickAddTodo(request.todoData).then(result => {
+        sendResponse(result);
+      }).catch(error => {
+        sendResponse({ error: error.message });
+      });
+      return true; // Keep channel open for async response
+      
+    case 'getRecentTodos':
+      getRecentTodos(request.count || 5).then(todos => {
+        sendResponse({ todos });
+      }).catch(error => {
+        sendResponse({ error: error.message });
+      });
+      return true; // Keep channel open for async response
+      
+    case 'getTodoWidgets':
+      getTodoWidgets().then(widgets => {
+        sendResponse({ widgets });
+      }).catch(error => {
+        sendResponse({ error: error.message });
+      });
+      return true; // Keep channel open for async response
+      
+    case 'openPopupWithTodo':
+      // Store the current page info for the popup to retrieve
+      chrome.storage.local.set({ 
+        pendingTodo: {
+          url: sender.tab.url,
+          title: sender.tab.title,
+          favicon: sender.tab.favIconUrl,
+          selectedText: request.selectedText
+        }
+      });
+      // Open the popup programmatically (if possible)
+      chrome.action.openPopup();
+      sendResponse({ success: true });
+      break;
+      
     default:
       sendResponse({ error: 'Unknown action' });
   }
@@ -279,6 +318,225 @@ function showNotification(title, message) {
     });
   }
 }
+
+// Get all todo widgets
+async function getTodoWidgets() {
+  try {
+    console.log('Getting todo widgets from storage...');
+    
+    // Get all storage data
+    const data = await chrome.storage.local.get(null);
+    console.log('Storage keys:', Object.keys(data));
+    
+    const todoWidgets = [];
+    
+    // Get current space from storage
+    const currentSpaceId = data.currentSpaceId || 'space-1752873684875-2i7c4'; // default space
+    console.log('Current space ID:', currentSpaceId);
+    
+    // Look for widgets in space-specific keys
+    const widgetsKey = `widgets-${currentSpaceId}`;
+    const widgets = data[widgetsKey] || {};
+    
+    // Also check legacy widgets key for backwards compatibility
+    const legacyWidgets = data.widgets || {};
+    
+    // Combine both sources
+    const allWidgets = { ...legacyWidgets, ...widgets };
+    
+    console.log('Found widgets:', Object.keys(allWidgets));
+    
+    // Find all todo widgets
+    for (const [id, widget] of Object.entries(allWidgets)) {
+      if (id.startsWith('todo-') && widget.enabled !== false) {
+        console.log(`Found todo widget: ${id}`);
+        todoWidgets.push({
+          id: id,
+          name: widget.customName || widget.title || widget.name || `Todo List ${todoWidgets.length + 1}`,
+          todoCount: (widget.todos || []).filter(t => !t.completed).length,
+          totalCount: (widget.todos || []).length
+        });
+      }
+    }
+    
+    // If no widgets found, create a default one
+    if (todoWidgets.length === 0) {
+      console.log('No todo widgets found, creating default...');
+      const defaultWidgetId = 'todo-' + Date.now();
+      const defaultWidget = {
+        type: 'todo',
+        enabled: true,
+        todos: [],
+        createdAt: Date.now()
+      };
+      
+      // Save the default widget to the current space
+      const updatedWidgets = { ...widgets };
+      updatedWidgets[defaultWidgetId] = defaultWidget;
+      
+      await chrome.storage.local.set({ [widgetsKey]: updatedWidgets });
+      
+      todoWidgets.push({
+        id: defaultWidgetId,
+        name: 'My Todos',
+        todoCount: 0,
+        totalCount: 0
+      });
+    }
+    
+    console.log(`Returning ${todoWidgets.length} todo widgets`);
+    return todoWidgets;
+  } catch (error) {
+    console.error('Failed to get todo widgets:', error);
+    // Return empty array instead of throwing
+    return [];
+  }
+}
+
+// Add todo from any context (popup, content script, etc.)
+async function quickAddTodo(todoData) {
+  try {
+    const data = await chrome.storage.local.get(null);
+    
+    // Get current space
+    const currentSpaceId = data.currentSpaceId || 'space-1752873684875-2i7c4';
+    const widgetsKey = `widgets-${currentSpaceId}`;
+    const widgets = data[widgetsKey] || {};
+    
+    // Also check legacy widgets
+    const legacyWidgets = data.widgets || {};
+    
+    // Use specified widget ID or find the first Todo widget
+    let todoWidget = null;
+    let todoWidgetId = todoData.widgetId;
+    let isLegacy = false;
+    
+    if (todoWidgetId) {
+      // Check in current space widgets first
+      if (widgets[todoWidgetId]) {
+        todoWidget = widgets[todoWidgetId];
+      } else if (legacyWidgets[todoWidgetId]) {
+        // Check in legacy widgets
+        todoWidget = legacyWidgets[todoWidgetId];
+        isLegacy = true;
+      }
+    } else {
+      // Find the first Todo widget as fallback
+      for (const [id, widget] of Object.entries(widgets)) {
+        if (id.startsWith('todo-')) {
+          todoWidget = widget;
+          todoWidgetId = id;
+          break;
+        }
+      }
+      
+      // If not found in current space, check legacy
+      if (!todoWidget) {
+        for (const [id, widget] of Object.entries(legacyWidgets)) {
+          if (id.startsWith('todo-')) {
+            todoWidget = widget;
+            todoWidgetId = id;
+            isLegacy = true;
+            break;
+          }
+        }
+      }
+    }
+    
+    if (!todoWidget) {
+      throw new Error('No todo widget found');
+    }
+    
+    // Create the new todo
+    const newTodo = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      text: todoData.text,
+      completed: false,
+      priority: todoData.priority || null,
+      note: todoData.note || '',
+      links: todoData.links || [],
+      url: todoData.url || null,
+      pageTitle: todoData.pageTitle || null,
+      favicon: todoData.favicon || null,
+      dueDate: todoData.dueDate || null,
+      createdAt: Date.now(),
+      source: todoData.source || 'popup',
+      order: (todoWidget.todos || []).length
+    };
+    
+    // Add to todos
+    if (!todoWidget.todos) todoWidget.todos = [];
+    todoWidget.todos.unshift(newTodo);
+    
+    // Update widget
+    todoWidget.lastUpdated = Date.now();
+    
+    // Save to appropriate storage location
+    if (isLegacy) {
+      legacyWidgets[todoWidgetId] = todoWidget;
+      await chrome.storage.local.set({ widgets: legacyWidgets });
+    } else {
+      widgets[todoWidgetId] = todoWidget;
+      await chrome.storage.local.set({ [widgetsKey]: widgets });
+    }
+    
+    return { success: true, todo: newTodo };
+  } catch (error) {
+    console.error('Failed to add todo:', error);
+    throw error;
+  }
+}
+
+// Get recent todos
+async function getRecentTodos(count = 5) {
+  try {
+    const data = await chrome.storage.local.get(['widgets']);
+    const widgets = data.widgets || {};
+    
+    let allTodos = [];
+    
+    // Collect todos from all todo widgets
+    for (const [id, widget] of Object.entries(widgets)) {
+      if (id.startsWith('todo-') && widget.todos) {
+        allTodos = allTodos.concat(widget.todos.map(todo => ({
+          ...todo,
+          widgetId: id
+        })));
+      }
+    }
+    
+    // Sort by creation date and return most recent
+    allTodos.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    
+    return allTodos.slice(0, count);
+  } catch (error) {
+    console.error('Failed to get recent todos:', error);
+    throw error;
+  }
+}
+
+// Handle keyboard shortcuts
+chrome.commands.onCommand.addListener((command) => {
+  if (command === 'quick-todo') {
+    // Get current tab info
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        // Store current page info for popup
+        chrome.storage.local.set({ 
+          pendingTodo: {
+            url: tabs[0].url,
+            title: tabs[0].title,
+            favicon: tabs[0].favIconUrl,
+            source: 'keyboard'
+          }
+        }, () => {
+          // Open the popup
+          chrome.action.openPopup();
+        });
+      }
+    });
+  }
+});
 
 // Keep service worker alive (Manifest V3 requirement)
 // This is a workaround for the service worker being terminated after 30 seconds

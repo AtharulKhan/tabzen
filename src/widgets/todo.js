@@ -274,6 +274,32 @@ export class TodoWidget {
           background: rgba(16, 185, 129, 0.1);
         }
         
+        /* Page icon styles */
+        .todo-page-icon {
+          width: 24px;
+          height: 24px;
+          margin-right: 8px;
+          cursor: pointer;
+          color: var(--primary);
+          opacity: 0.8;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 4px;
+          font-size: 14px;
+        }
+        
+        .todo-page-icon:hover {
+          opacity: 1;
+          background: var(--surface-hover);
+          transform: scale(1.1);
+        }
+        
+        .todo-page-icon img {
+          border-radius: 2px;
+        }
+        
         /* Calendar icon styles */
         .todo-calendar-icon {
           width: 24px;
@@ -2339,6 +2365,11 @@ export class TodoWidget {
         <div class="todo-link-icon ${todo.links && todo.links.length > 0 ? 'has-links' : ''}" title="${todo.links && todo.links.length > 0 ? `${todo.links.length} link${todo.links.length > 1 ? 's' : ''} (right-click to edit)` : 'Add links'}">
           ${todo.links && todo.links.length > 0 ? '🔗' : '🔗'}
         </div>
+        ${todo.url ? `
+          <div class="todo-page-icon" title="${todo.pageTitle || 'Source page'}">
+            ${todo.favicon ? `<img src="${todo.favicon}" alt="" style="width: 16px; height: 16px;">` : '🌐'}
+          </div>
+        ` : ''}
         <div class="todo-calendar-icon ${todo.dueDate ? 'has-date' : ''}" title="${todo.dueDate ? `Due: ${this.formatDueDate(todo.dueDate)}` : 'Set due date'}">
           📅
         </div>
@@ -2578,7 +2609,11 @@ export class TodoWidget {
         priority: null,
         note: '',
         links: [],
+        url: null,
+        pageTitle: null,
+        favicon: null,
         dueDate: null,
+        source: 'newtab',
         createdAt: Date.now(),
         order: Math.max(...this.todos.map(t => t.order || 0), -1) + 1
       };
@@ -2633,6 +2668,15 @@ export class TodoWidget {
       if (e.target.closest('.todo-link-icon')) {
         e.stopPropagation();
         this.handleLinkClick(todoId);
+        return;
+      }
+      
+      // Handle page icon click
+      if (e.target.closest('.todo-page-icon')) {
+        e.stopPropagation();
+        if (todo.url) {
+          window.open(todo.url, '_blank');
+        }
         return;
       }
       

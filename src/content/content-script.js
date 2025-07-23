@@ -15,6 +15,16 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     chrome.runtime.sendMessage({ action: 'createTab', url: 'chrome://newtab' });
   }
+  
+  // Ctrl/Cmd + Shift + T to create quick todo (backup if command API fails)
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'T') {
+    e.preventDefault();
+    const selectedText = window.getSelection().toString();
+    chrome.runtime.sendMessage({ 
+      action: 'openPopupWithTodo',
+      selectedText: selectedText
+    });
+  }
 });
 
 // Add floating action button for quick actions (optional, disabled by default)

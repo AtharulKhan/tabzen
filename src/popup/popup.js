@@ -1,189 +1,301 @@
-// Popup Script
+// Simplified Popup Script for Quick Todo
+
+// State
+let currentPageData = null;
+let todoWidgets = [];
+let selectedWidgetId = null;
 
 // Elements
 const elements = {
-  widgetCount: document.getElementById('widgetCount'),
-  todoCount: document.getElementById('todoCount'),
-  linkCount: document.getElementById('linkCount'),
-  openNewTab: document.getElementById('openNewTab'),
-  quickNote: document.getElementById('quickNote'),
-  quickNoteArea: document.getElementById('quickNoteArea'),
-  quickNoteInput: document.getElementById('quickNoteInput'),
-  saveNote: document.getElementById('saveNote'),
-  cancelNote: document.getElementById('cancelNote'),
-  storagePercent: document.getElementById('storagePercent'),
-  storageFill: document.getElementById('storageFill'),
-  openSettings: document.getElementById('openSettings'),
-  rateExtension: document.getElementById('rateExtension')
+  loadingState: document.getElementById('loadingState'),
+  errorState: document.getElementById('errorState'),
+  errorMessage: document.getElementById('errorMessage'),
+  todoForm: document.getElementById('todoForm'),
+  todoWidget: document.getElementById('todoWidget'),
+  pageInfo: document.getElementById('pageInfo'),
+  pageFavicon: document.getElementById('pageFavicon'),
+  pageTitle: document.getElementById('pageTitle'),
+  todoText: document.getElementById('todoText'),
+  dueDate: document.getElementById('dueDate'),
+  priority: document.getElementById('priority'),
+  todoNote: document.getElementById('todoNote'),
+  saveTodo: document.getElementById('saveTodo'),
+  openDashboard: document.getElementById('openDashboard'),
+  closePopup: document.getElementById('closePopup'),
+  retryLoad: document.getElementById('retryLoad')
 };
 
-// Initialize popup
+// Initialize
+document.addEventListener('DOMContentLoaded', init);
+
 async function init() {
-  await updateStats();
-  await updateStorageInfo();
+  console.log('Initializing popup...');
+  
+  // Setup event listeners
   setupEventListeners();
+  
+  // Get current page info
+  await getCurrentPageInfo();
+  
+  // Load todo widgets
+  await loadTodoWidgets();
 }
 
-// Update statistics
-async function updateStats() {
+// Get current page information
+async function getCurrentPageInfo() {
   try {
-    const data = await chrome.storage.local.get(['widgets']);
-    const widgets = data.widgets || {};
-    
-    // Count active widgets
-    let widgetCount = 0;
-    let todoCount = 0;
-    let linkCount = 0;
-    
-    Object.entries(widgets).forEach(([id, widget]) => {
-      if (widget.enabled !== false) {
-        widgetCount++;
-        
-        // Count todos
-        if (id.startsWith('todo-') && widget.todos) {
-          todoCount += widget.todos.filter(todo => !todo.completed).length;
-        }
-        
-        // Count links
-        if (id.startsWith('quickLinks-') && widget.links) {
-          linkCount += widget.links.length;
-        }
-      }
-    });
-    
-    // Update UI
-    elements.widgetCount.textContent = widgetCount;
-    elements.todoCount.textContent = todoCount;
-    elements.linkCount.textContent = linkCount;
-    
-  } catch (error) {
-    console.error('Failed to update stats:', error);
-  }
-}
-
-// Update storage info
-async function updateStorageInfo() {
-  try {
-    const bytes = await chrome.storage.local.getBytesInUse();
-    const quota = chrome.storage.local.QUOTA_BYTES || 5242880; // 5MB
-    const percentage = Math.round((bytes / quota) * 100);
-    
-    elements.storagePercent.textContent = `${percentage}%`;
-    elements.storageFill.style.width = `${percentage}%`;
-    
-    // Change color based on usage
-    if (percentage > 80) {
-      elements.storageFill.style.background = 'var(--error)';
-    } else if (percentage > 60) {
-      elements.storageFill.style.background = 'var(--warning)';
+    // Check for pending todo from keyboard shortcut
+    const pending = await chrome.storage.local.get('pendingTodo');
+    if (pending.pendingTodo) {
+      currentPageData = pending.pendingTodo;
+      chrome.storage.local.remove('pendingTodo');
+      return;
     }
     
+    // Get current tab info
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tabs[0]) {
+      currentPageData = {
+        url: tabs[0].url,
+        title: tabs[0].title,
+        favicon: tabs[0].favIconUrl
+      };
+    }
   } catch (error) {
-    console.error('Failed to update storage info:', error);
+    console.error('Failed to get page info:', error);
   }
 }
 
-// Setup event listeners
+// Load todo widgets
+async function loadTodoWidgets() {
+  try {
+    console.log('Loading todo widgets...');
+    showLoading();
+    
+    // Try direct storage access first (faster)
+    await loadWidgetsDirectly();
+  } catch (error) {
+    console.error('Failed to load widgets:', error);
+    showError('Failed to load widgets. Please try again.');
+  }
+}
+
+// Load widgets directly from storage
+async function loadWidgetsDirectly() {
+  try {
+    // Get only the keys we need for better performance
+    const data = await chrome.storage.local.get(['currentSpaceId', 'widgets']);
+    
+    // Get current space
+    const currentSpaceId = data.currentSpaceId || 'space-1752873684875-2i7c4';
+    const widgetsKey = `widgets-${currentSpaceId}`;
+    
+    // Get widgets for current space
+    const spaceData = await chrome.storage.local.get(widgetsKey);
+    const widgets = spaceData[widgetsKey] || {};
+    
+    // Also check legacy widgets
+    const legacyWidgets = data.widgets || {};
+    
+    // Combine both sources
+    const allWidgets = { ...legacyWidgets, ...widgets };
+    
+    todoWidgets = [];
+    for (const [id, widget] of Object.entries(allWidgets)) {
+      if (id.startsWith('todo-') && widget.enabled !== false) {
+        todoWidgets.push({
+          id: id,
+          name: widget.customName || widget.title || widget.name || `Todo List ${todoWidgets.length + 1}`,
+          // Count todos without filtering - faster
+          todoCount: widget.todos ? widget.todos.length : 0,
+          totalCount: widget.todos ? widget.todos.length : 0
+        });
+      }
+    }
+    
+    if (todoWidgets.length > 0) {
+      populateWidgetDropdown();
+      showForm();
+    } else {
+      showError('No todo widgets found. Click "Open Dashboard" to add one.');
+    }
+  } catch (error) {
+    console.error('Direct storage access failed:', error);
+    showError('Unable to access widget data.');
+  }
+}
+
+// Populate widget dropdown
+function populateWidgetDropdown() {
+  elements.todoWidget.innerHTML = '';
+  
+  // Get saved preference
+  const savedWidgetId = localStorage.getItem('quickTodoWidget');
+  
+  todoWidgets.forEach((widget, index) => {
+    const option = document.createElement('option');
+    option.value = widget.id;
+    option.textContent = `${widget.name} (${widget.todoCount} active)`;
+    elements.todoWidget.appendChild(option);
+    
+    // Select saved or first widget
+    if ((savedWidgetId && widget.id === savedWidgetId) || (!savedWidgetId && index === 0)) {
+      option.selected = true;
+      selectedWidgetId = widget.id;
+    }
+  });
+}
+
+// Save todo
+async function saveTodo() {
+  const text = elements.todoText.value.trim();
+  if (!text) {
+    elements.todoText.focus();
+    return;
+  }
+  
+  const widgetId = elements.todoWidget.value;
+  if (!widgetId) {
+    alert('Please select a widget');
+    return;
+  }
+  
+  // Save widget preference
+  localStorage.setItem('quickTodoWidget', widgetId);
+  
+  const todoData = {
+    text,
+    note: elements.todoNote.value.trim(),
+    dueDate: elements.dueDate.value ? new Date(elements.dueDate.value + 'T12:00:00').getTime() : null,
+    priority: elements.priority.value || null,
+    links: [],
+    source: 'popup',
+    widgetId: widgetId
+  };
+  
+  // Add page data if available
+  if (currentPageData && currentPageData.url && !currentPageData.url.startsWith('chrome://')) {
+    todoData.url = currentPageData.url;
+    todoData.pageTitle = currentPageData.title;
+    todoData.favicon = currentPageData.favicon;
+  }
+  
+  try {
+    elements.saveTodo.disabled = true;
+    elements.saveTodo.textContent = 'Saving...';
+    
+    const response = await sendMessage({ 
+      action: 'quickAddTodo', 
+      todoData 
+    });
+    
+    if (response && response.success) {
+      // Success - close popup
+      window.close();
+    } else {
+      throw new Error(response?.error || 'Failed to save todo');
+    }
+  } catch (error) {
+    console.error('Failed to save todo:', error);
+    alert('Failed to save todo. Please try again.');
+    elements.saveTodo.disabled = false;
+    elements.saveTodo.textContent = 'Save Todo';
+  }
+}
+
+// Send message to service worker
+async function sendMessage(message) {
+  return new Promise((resolve) => {
+    console.log('Sending message to service worker:', message);
+    chrome.runtime.sendMessage(message, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('Runtime error:', chrome.runtime.lastError);
+        resolve(null);
+      } else {
+        console.log('Received response:', response);
+        resolve(response);
+      }
+    });
+  });
+}
+
+// UI State Management
+function showLoading() {
+  elements.loadingState.style.display = 'flex';
+  elements.errorState.style.display = 'none';
+  elements.todoForm.style.display = 'none';
+}
+
+function showError(message) {
+  elements.loadingState.style.display = 'none';
+  elements.errorState.style.display = 'flex';
+  elements.todoForm.style.display = 'none';
+  elements.errorMessage.textContent = message;
+}
+
+function showForm() {
+  elements.loadingState.style.display = 'none';
+  elements.errorState.style.display = 'none';
+  elements.todoForm.style.display = 'block';
+  
+  // Update page info
+  if (currentPageData && currentPageData.url && !currentPageData.url.startsWith('chrome://')) {
+    elements.pageInfo.style.display = 'flex';
+    elements.pageTitle.textContent = currentPageData.title || 'Current page';
+    
+    if (currentPageData.favicon) {
+      elements.pageFavicon.src = currentPageData.favicon;
+      elements.pageFavicon.style.display = 'block';
+    } else {
+      elements.pageFavicon.style.display = 'none';
+    }
+  } else {
+    elements.pageInfo.style.display = 'none';
+  }
+  
+  // Focus input
+  elements.todoText.focus();
+}
+
+// Event Listeners
 function setupEventListeners() {
-  // Open new tab
-  elements.openNewTab.addEventListener('click', () => {
+  // Save todo
+  elements.saveTodo.addEventListener('click', saveTodo);
+  
+  // Enter key saves todo
+  elements.todoText.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      saveTodo();
+    }
+  });
+  
+  // Open dashboard
+  elements.openDashboard.addEventListener('click', () => {
     chrome.tabs.create({ url: 'chrome://newtab' });
     window.close();
   });
   
-  // Quick note toggle
-  elements.quickNote.addEventListener('click', () => {
-    const isVisible = elements.quickNoteArea.style.display !== 'none';
-    elements.quickNoteArea.style.display = isVisible ? 'none' : 'block';
-    
-    if (!isVisible) {
-      elements.quickNoteInput.focus();
-    }
-  });
-  
-  // Save note
-  elements.saveNote.addEventListener('click', async () => {
-    const note = elements.quickNoteInput.value.trim();
-    if (!note) return;
-    
-    try {
-      // Get existing notes widget or create note data
-      const data = await chrome.storage.local.get(['widgets']);
-      const widgets = data.widgets || {};
-      
-      // Find notes widget
-      let notesWidgetId = null;
-      for (const [id, widget] of Object.entries(widgets)) {
-        if (id.startsWith('notes-')) {
-          notesWidgetId = id;
-          break;
-        }
-      }
-      
-      if (notesWidgetId) {
-        // Append to existing notes
-        const existingContent = widgets[notesWidgetId].content || '';
-        const newContent = existingContent ? 
-          `${existingContent}\\n\\n${new Date().toLocaleString()}\\n${note}` : 
-          `${new Date().toLocaleString()}\\n${note}`;
-        
-        widgets[notesWidgetId].content = newContent;
-        widgets[notesWidgetId].lastUpdated = Date.now();
-        
-        await chrome.storage.local.set({ widgets });
-        
-        // Clear input and hide area
-        elements.quickNoteInput.value = '';
-        elements.quickNoteArea.style.display = 'none';
-        
-        // Show confirmation (you could add a toast notification here)
-        elements.quickNote.style.background = 'var(--success)';
-        elements.quickNote.style.color = 'white';
-        
-        setTimeout(() => {
-          elements.quickNote.style.background = '';
-          elements.quickNote.style.color = '';
-        }, 1000);
-      } else {
-        alert('Please add a Notes widget to your dashboard first!');
-      }
-      
-    } catch (error) {
-      console.error('Failed to save note:', error);
-    }
-  });
-  
-  // Cancel note
-  elements.cancelNote.addEventListener('click', () => {
-    elements.quickNoteInput.value = '';
-    elements.quickNoteArea.style.display = 'none';
-  });
-  
-  // Open settings
-  elements.openSettings.addEventListener('click', (e) => {
-    e.preventDefault();
-    chrome.tabs.create({ url: 'chrome://newtab#settings' });
+  // Close popup
+  elements.closePopup.addEventListener('click', () => {
     window.close();
   });
   
-  // Rate extension
-  elements.rateExtension.addEventListener('click', (e) => {
-    e.preventDefault();
-    const extensionId = chrome.runtime.id;
-    chrome.tabs.create({ 
-      url: `https://chrome.google.com/webstore/detail/${extensionId}/reviews` 
-    });
-    window.close();
+  // Retry load
+  elements.retryLoad.addEventListener('click', () => {
+    loadTodoWidgets();
   });
   
-  // Listen for Enter key in quick note
-  elements.quickNoteInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      elements.saveNote.click();
+  // Widget selection
+  elements.todoWidget.addEventListener('change', (e) => {
+    selectedWidgetId = e.target.value;
+    localStorage.setItem('quickTodoWidget', selectedWidgetId);
+  });
+  
+  // Escape closes popup
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      window.close();
     }
   });
 }
-
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', init);
