@@ -14,6 +14,7 @@ export class TodoWidget {
     this.sortMode = this.savedData.sortMode || 'manual';
     this.draggedItem = null;
     this.draggedTodoId = null;
+    this.searchQuery = this.savedData.searchQuery || '';
   }
   
   async init() {
@@ -72,6 +73,7 @@ export class TodoWidget {
     this.todos = this.savedData.todos || [];
     this.templates = [];
     this.sortMode = this.savedData.sortMode || 'manual';
+    this.searchQuery = this.savedData.searchQuery || '';
     
     // First, load widget-specific templates
     const widgetTemplates = this.savedData.templates || [];
@@ -221,7 +223,8 @@ export class TodoWidget {
     const dataToSave = {
       todos: this.todos,
       templates: this.templates,
-      sortMode: this.sortMode
+      sortMode: this.sortMode,
+      searchQuery: this.searchQuery
     };
     
     console.log('Saving widget state:', {
@@ -345,6 +348,57 @@ export class TodoWidget {
         .todo-add-btn:hover {
           background: var(--primary-hover);
           transform: translateY(-1px);
+        }
+        
+        /* Search bar styles */
+        .todo-search-wrapper {
+          display: flex;
+          align-items: center;
+          position: relative;
+          width: 100%;
+          margin-bottom: 12px;
+        }
+        
+        .todo-search {
+          width: 100%;
+          padding: 8px 36px 8px 12px;
+          font-size: 14px;
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          background: var(--surface);
+          color: var(--foreground);
+          transition: border-color 0.2s ease;
+        }
+        
+        .todo-search:focus {
+          outline: none;
+          border-color: var(--primary);
+        }
+        
+        .todo-search-clear {
+          position: absolute;
+          right: 8px;
+          width: 24px;
+          height: 24px;
+          border: none;
+          background: var(--surface-hover);
+          color: var(--muted);
+          border-radius: 4px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 18px;
+          transition: all 0.2s ease;
+        }
+        
+        .todo-search-clear:hover {
+          background: var(--primary);
+          color: white;
+        }
+        
+        .todo-search-active {
+          border-color: var(--primary) !important;
         }
         
         .todo-list {
@@ -2102,6 +2156,17 @@ export class TodoWidget {
         }
       </style>
       
+      <div class="todo-search-wrapper">
+        <input 
+          type="text" 
+          class="todo-search" 
+          placeholder="Search tasks..."
+          id="todoSearch"
+          value="${this.searchQuery}"
+        >
+        <button class="todo-search-clear" id="todoSearchClear" style="display: ${this.searchQuery ? 'flex' : 'none'};">×</button>
+      </div>
+      
       <div class="todo-controls">
         <div class="todo-input-wrapper">
           <input 
@@ -2401,6 +2466,8 @@ export class TodoWidget {
     this.todoCopyBtn = todoContainer.querySelector('#todoCopyBtn');
     this.todoSortBtn = todoContainer.querySelector('#todoSortBtn');
     this.todoSortDropdown = todoContainer.querySelector('#todoSortDropdown');
+    this.todoSearch = todoContainer.querySelector('#todoSearch');
+    this.todoSearchClear = todoContainer.querySelector('#todoSearchClear');
     
     // Template elements
     this.templateBtn = todoContainer.querySelector('#todoTemplateBtn');
@@ -2473,16 +2540,35 @@ export class TodoWidget {
     this.todoList.innerHTML = '';
     
     let filteredTodos = this.todos;
+    
+    // Apply search filter first
+    if (this.searchQuery) {
+      const query = this.searchQuery.toLowerCase();
+      filteredTodos = filteredTodos.filter(todo => {
+        const textMatch = todo.text.toLowerCase().includes(query);
+        const noteMatch = todo.note && todo.note.toLowerCase().includes(query);
+        return textMatch || noteMatch;
+      });
+    }
+    
+    // Then apply status filter
     if (filter === 'active') {
-      filteredTodos = this.todos.filter(todo => !todo.completed);
+      filteredTodos = filteredTodos.filter(todo => !todo.completed);
     } else if (filter === 'completed') {
-      filteredTodos = this.todos.filter(todo => todo.completed);
+      filteredTodos = filteredTodos.filter(todo => todo.completed);
     }
     
     if (filteredTodos.length === 0) {
+      let emptyMessage = 'No tasks yet';
+      if (this.searchQuery) {
+        emptyMessage = `No tasks found for "${this.searchQuery}"`;
+      } else if (filter === 'completed') {
+        emptyMessage = 'No completed tasks';
+      }
+      
       this.todoList.innerHTML = `
         <div class="todo-empty">
-          ${filter === 'completed' ? 'No completed tasks' : 'No tasks yet'}
+          ${emptyMessage}
         </div>
       `;
       return;
@@ -2577,7 +2663,15 @@ export class TodoWidget {
     
     // Update count
     const activeCount = this.todos.filter(todo => !todo.completed).length;
-    this.todoCount.textContent = `${activeCount} ${activeCount === 1 ? 'item' : 'items'} left`;
+    let countText = `${activeCount} ${activeCount === 1 ? 'item' : 'items'} left`;
+    
+    // Add search indicator to count
+    if (this.searchQuery) {
+      const totalFiltered = filteredTodos.length;
+      countText += ` (${totalFiltered} matching "${this.searchQuery}")`;
+    }
+    
+    this.todoCount.textContent = countText;
     
     // Update completed count in settings
     this.updateCompletedCount();
@@ -2852,6 +2946,28 @@ export class TodoWidget {
     // Copy button
     this.todoCopyBtn.addEventListener('click', () => {
       this.copyAllTasks();
+    });
+    
+    // Search functionality
+    let searchTimeout;
+    this.todoSearch.addEventListener('input', (e) => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        this.searchQuery = e.target.value.trim();
+        this.todoSearchClear.style.display = this.searchQuery ? 'flex' : 'none';
+        this.renderTodos();
+        this.saveState();
+      }, 300);
+    });
+    
+    this.todoSearch.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.clearSearch();
+      }
+    });
+    
+    this.todoSearchClear.addEventListener('click', () => {
+      this.clearSearch();
     });
     
     // Todo interactions
@@ -3681,6 +3797,14 @@ export class TodoWidget {
     });
   }
 
+  clearSearch() {
+    this.searchQuery = '';
+    this.todoSearch.value = '';
+    this.todoSearchClear.style.display = 'none';
+    this.renderTodos();
+    this.saveState();
+  }
+  
   copyAllTasks() {
     const todoTexts = this.todos.map((todo, index) => {
       // Format as bullet points with priority if present
@@ -4084,6 +4208,34 @@ export class TodoWidget {
       action: () => {
         this.todoInput.focus();
       }
+    });
+    
+    // Search todos command
+    window.commandPalette.registerCommand({
+      id: `widget:${this.id}:search-todos`,
+      name: 'Search Todo Items',
+      description: 'Search through your todo list',
+      icon: '🔍',
+      category: 'Widget Actions',
+      aliases: ['find todo', 'filter tasks'],
+      action: () => {
+        this.todoSearch.focus();
+        this.todoSearch.select();
+      }
+    });
+    
+    // Clear search command
+    window.commandPalette.registerCommand({
+      id: `widget:${this.id}:clear-search`,
+      name: 'Clear Todo Search',
+      description: 'Clear the search filter',
+      icon: '✖️',
+      category: 'Widget Actions',
+      aliases: ['reset search', 'clear filter'],
+      action: () => {
+        this.clearSearch();
+      },
+      condition: () => !!this.searchQuery
     });
 
     // Clear completed todos
