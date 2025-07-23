@@ -22,6 +22,13 @@ export class TodoWidget {
     this.attachListeners();
     this.registerCommands();
     
+    // Force initial template render
+    setTimeout(() => {
+      if (this.templateList) {
+        this.renderTemplates();
+      }
+    }, 100);
+    
     // Check for pending template to apply
     const pendingTemplate = sessionStorage.getItem('pendingTodoTemplate');
     if (pendingTemplate) {
@@ -59,6 +66,14 @@ export class TodoWidget {
     this.templates = this.savedData.templates || [];
     this.sortMode = this.savedData.sortMode || 'manual';
     
+    // Debug logging for templates
+    console.log('Loading todo widget state:', {
+      widgetId: this.id,
+      todosCount: this.todos.length,
+      templatesCount: this.templates.length,
+      templates: this.templates
+    });
+    
     // Ensure all todos have an order field, links array, and dueDate
     let needsOrderUpdate = false;
     this.todos.forEach((todo, index) => {
@@ -85,6 +100,11 @@ export class TodoWidget {
       const result = await chrome.storage.local.get('todoTemplates');
       const standaloneTemplates = result.todoTemplates || [];
       
+      console.log('Loading standalone templates:', {
+        count: standaloneTemplates.length,
+        templates: standaloneTemplates
+      });
+      
       // Merge templates, avoiding duplicates by ID
       const templateIds = new Set(this.templates.map(t => t.id));
       standaloneTemplates.forEach(template => {
@@ -92,19 +112,42 @@ export class TodoWidget {
           this.templates.push(template);
         }
       });
+      
+      console.log('Total templates after merge:', this.templates.length);
     } catch (error) {
       console.error('Error loading standalone templates:', error);
     }
   }
   
   async saveState() {
-    // Only save templates that belong to this widget (not standalone ones)
-    const widgetTemplates = this.savedData.templates || [];
+    // Save all templates with this widget (both widget and standalone)
+    // This ensures templates persist even if standalone storage fails
+    console.log('Saving widget state:', {
+      widgetId: this.id,
+      todosCount: this.todos.length,
+      templatesCount: this.templates.length
+    });
+    
     await this.storage.saveWidget(this.id, {
       todos: this.todos,
-      templates: widgetTemplates,
+      templates: this.templates,
       sortMode: this.sortMode
     });
+    
+    // Also update standalone templates storage
+    try {
+      const standaloneTemplates = this.templates.filter(t => 
+        // Save all templates to standalone storage for global access
+        true
+      );
+      
+      if (standaloneTemplates.length > 0) {
+        await chrome.storage.local.set({ todoTemplates: standaloneTemplates });
+        console.log('Saved standalone templates:', standaloneTemplates.length);
+      }
+    } catch (error) {
+      console.error('Error saving standalone templates:', error);
+    }
   }
   
   render() {
@@ -1904,6 +1947,28 @@ export class TodoWidget {
             max-height: 500px;
           }
         }
+        
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        @keyframes slideOut {
+          from {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          to {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+        }
       </style>
       <style>
         /* Override widget overflow for priority dropdown */
@@ -2435,6 +2500,17 @@ export class TodoWidget {
   }
   
   renderTemplates() {
+    console.log('Rendering templates:', {
+      count: this.templates.length,
+      templateList: this.templateList,
+      templates: this.templates
+    });
+    
+    if (!this.templateList) {
+      console.error('Template list element not found');
+      return;
+    }
+    
     this.templateList.innerHTML = '';
     
     if (this.templates.length === 0) {
@@ -2465,7 +2541,10 @@ export class TodoWidget {
   }
   
   createTemplate(name) {
-    if (!name || this.todos.length === 0) return;
+    if (!name || this.todos.length === 0) {
+      console.log('Cannot create template:', { name, todosCount: this.todos.length });
+      return;
+    }
     
     const template = {
       id: Date.now().toString(),
@@ -2481,10 +2560,15 @@ export class TodoWidget {
       createdAt: Date.now()
     };
     
+    console.log('Creating template:', template);
+    
     this.templates.push(template);
     this.saveState();
     this.renderTemplates();
     this.renderSettingsTemplates();
+    
+    // Show success message
+    this.showToast('Template saved successfully!');
   }
   
   applyTemplate(templateId, mode = 'replace') {
@@ -2825,8 +2909,17 @@ export class TodoWidget {
     // Template button toggle
     this.templateBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      console.log('Template button clicked', {
+        showTemplateMenu: this.showTemplateMenu,
+        templatesCount: this.templates.length
+      });
       this.showTemplateMenu = !this.showTemplateMenu;
       this.templateDropdown.classList.toggle('show', this.showTemplateMenu);
+      
+      // Re-render templates when showing dropdown
+      if (this.showTemplateMenu) {
+        this.renderTemplates();
+      }
     });
     
     // Close dropdown when clicking outside
@@ -3216,6 +3309,31 @@ export class TodoWidget {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+  
+  showToast(message, duration = 3000) {
+    const toast = document.createElement('div');
+    toast.className = 'todo-toast';
+    toast.textContent = message;
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--primary);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      z-index: 10000;
+      animation: slideIn 0.3s ease-out;
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.style.animation = 'slideOut 0.3s ease-out';
+      setTimeout(() => toast.remove(), 300);
+    }, duration);
   }
   
   formatDueDate(timestamp) {

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Todo Templates</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            border: none;
+            background: #007bff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .log {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            background: white;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Todo Templates Test</h1>
+    
+    <div class="test-section">
+        <h2>Storage Test</h2>
+        <button onclick="testStorage()">Test Chrome Storage</button>
+        <button onclick="viewStorage()">View Current Storage</button>
+        <button onclick="clearTemplates()">Clear Templates</button>
+        <button onclick="addTestTemplate()">Add Test Template</button>
+        <div id="storageLog" class="log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Widget Test</h2>
+        <div id="widgetContainer"></div>
+        <button onclick="createWidget()">Create Todo Widget</button>
+        <button onclick="logWidgetState()">Log Widget State</button>
+    </div>
+
+    <script>
+        const log = (message, data = null) => {
+            const logDiv = document.getElementById('storageLog');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <strong>${new Date().toLocaleTimeString()}</strong>: ${message}
+                ${data ? '<pre>' + JSON.stringify(data, null, 2) + '</pre>' : ''}
+            `;
+            logDiv.insertBefore(entry, logDiv.firstChild);
+        };
+
+        const testStorage = async () => {
+            try {
+                // Test write
+                const testData = { test: 'value', timestamp: Date.now() };
+                await chrome.storage.local.set({ testData });
+                log('Write test successful', testData);
+                
+                // Test read
+                const result = await chrome.storage.local.get('testData');
+                log('Read test successful', result);
+                
+                // Clean up
+                await chrome.storage.local.remove('testData');
+                log('Cleanup successful');
+            } catch (error) {
+                log('Storage test failed: ' + error.message, error);
+            }
+        };
+
+        const viewStorage = async () => {
+            try {
+                const allData = await chrome.storage.local.get(null);
+                log('All storage data', allData);
+                
+                // Specifically look for templates
+                const templates = await chrome.storage.local.get('todoTemplates');
+                log('Todo templates', templates);
+                
+                // Look for widget data
+                const widgetKeys = Object.keys(allData).filter(key => key.startsWith('widget-'));
+                const widgetData = {};
+                for (const key of widgetKeys) {
+                    widgetData[key] = allData[key];
+                }
+                log('Widget data', widgetData);
+            } catch (error) {
+                log('Failed to view storage: ' + error.message, error);
+            }
+        };
+
+        const clearTemplates = async () => {
+            try {
+                await chrome.storage.local.remove('todoTemplates');
+                log('Templates cleared');
+            } catch (error) {
+                log('Failed to clear templates: ' + error.message, error);
+            }
+        };
+
+        const addTestTemplate = async () => {
+            try {
+                const template = {
+                    id: Date.now().toString(),
+                    name: 'Test Template ' + new Date().toLocaleTimeString(),
+                    items: [
+                        { text: 'Task 1', priority: 'high', completed: false },
+                        { text: 'Task 2', priority: 'medium', completed: false },
+                        { text: 'Task 3', priority: 'low', completed: false }
+                    ],
+                    createdAt: Date.now()
+                };
+                
+                const existing = await chrome.storage.local.get('todoTemplates');
+                const templates = existing.todoTemplates || [];
+                templates.push(template);
+                
+                await chrome.storage.local.set({ todoTemplates: templates });
+                log('Added test template', template);
+            } catch (error) {
+                log('Failed to add template: ' + error.message, error);
+            }
+        };
+
+        let widget = null;
+
+        const createWidget = async () => {
+            try {
+                // Load the module
+                const module = await import('./src/widgets/todo.js');
+                const TodoWidget = module.TodoWidget;
+                
+                // Create mock storage
+                const mockStorage = {
+                    async saveWidget(id, data) {
+                        await chrome.storage.local.set({ [`widget-${id}`]: data });
+                        log('Widget saved', { id, data });
+                    },
+                    async loadWidget(id) {
+                        const result = await chrome.storage.local.get(`widget-${id}`);
+                        return result[`widget-${id}`] || {};
+                    }
+                };
+                
+                // Create widget instance
+                const container = document.getElementById('widgetContainer');
+                container.innerHTML = '';
+                
+                const widgetId = 'todo-test-' + Date.now();
+                const savedData = await mockStorage.loadWidget(widgetId);
+                
+                widget = new TodoWidget(widgetId, container, savedData, mockStorage);
+                await widget.init();
+                
+                log('Widget created', { id: widgetId });
+            } catch (error) {
+                log('Failed to create widget: ' + error.message, error);
+                console.error(error);
+            }
+        };
+
+        const logWidgetState = () => {
+            if (!widget) {
+                log('No widget created yet');
+                return;
+            }
+            
+            log('Widget state', {
+                id: widget.id,
+                todos: widget.todos,
+                templates: widget.templates,
+                showTemplateMenu: widget.showTemplateMenu
+            });
+        };
+
+        // Auto-load widget on page load if we're in extension context
+        if (window.chrome && chrome.storage) {
+            log('Chrome storage API available');
+        } else {
+            log('Chrome storage API not available - open this in extension context');
+        }
+    </script>
+</body>
+</html>
