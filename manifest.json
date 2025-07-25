@@ -7,16 +7,17 @@
   
   "permissions": [
     "storage",
+    "activeTab"
+  ],
+  
+  "optional_permissions": [
     "geolocation",
     "bookmarks",
     "tabs",
     "tabGroups",
     "sessions",
     "webNavigation",
-    "history"
-  ],
-  
-  "optional_permissions": [
+    "history",
     "windows",
     "contextMenus",
     "notifications"
@@ -47,13 +48,6 @@
     "service_worker": "src/background/service-worker.js"
   },
   
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["src/content/content-script.js"],
-      "run_at": "document_end"
-    }
-  ],
   
   "commands": {
     "quick-todo": {
@@ -69,8 +63,5 @@
     "extension_pages": "script-src 'self'; object-src 'none'"
   },
   
-  "host_permissions": [
-    "https://*/*",
-    "http://*/*"
-  ]
+  "host_permissions": []
 }

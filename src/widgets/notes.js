@@ -1,4 +1,5 @@
 // Notes Widget
+import { sanitizeText } from '../utils/sanitizer.js';
 
 export class NotesWidget {
   constructor(container, options) {

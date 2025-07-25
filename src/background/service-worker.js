@@ -538,8 +538,3 @@ chrome.commands.onCommand.addListener((command) => {
   }
 });
 
-// Keep service worker alive (Manifest V3 requirement)
-// This is a workaround for the service worker being terminated after 30 seconds
-const keepAlive = () => setInterval(chrome.runtime.getPlatformInfo, 20e3);
-chrome.runtime.onStartup.addListener(keepAlive);
-keepAlive();

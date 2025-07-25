@@ -1,4 +1,5 @@
 // Quick Links Widget
+import { escapeHtml, sanitizeUrl } from '../utils/sanitizer.js';
 
 export class QuickLinksWidget {
   constructor(container, options) {
@@ -615,12 +616,16 @@ export class QuickLinksWidget {
       const url = urlInput.value.trim();
       if (!url) return;
       
-      // Add https:// if no protocol
-      const finalUrl = url.match(/^https?:\/\//) ? url : `https://${url}`;
+      // Sanitize URL
+      const finalUrl = sanitizeUrl(url);
+      if (!finalUrl) {
+        alert('Invalid URL. Please enter a valid web address.');
+        return;
+      }
       
       const link = {
         url: finalUrl,
-        title: titleInput.value.trim() || this.getHostname(finalUrl)
+        title: escapeHtml(titleInput.value.trim()) || this.getHostname(finalUrl)
       };
       
       this.links.push(link);
@@ -1028,12 +1033,16 @@ export class QuickLinksWidget {
       const url = urlInput.value.trim();
       if (!url) return;
       
-      // Add https:// if no protocol
-      const finalUrl = url.match(/^https?:\/\//) ? url : `https://${url}`;
+      // Sanitize URL
+      const finalUrl = sanitizeUrl(url);
+      if (!finalUrl) {
+        alert('Invalid URL. Please enter a valid web address.');
+        return;
+      }
       
       this.links[index] = {
         url: finalUrl,
-        title: titleInput.value.trim() || this.getHostname(finalUrl)
+        title: escapeHtml(titleInput.value.trim()) || this.getHostname(finalUrl)
       };
       
       await this.saveState();
@@ -1075,10 +1084,36 @@ export class QuickLinksWidget {
   }
   
   destroy() {
+    // Remove event listeners
+    if (this.editBtn) this.editBtn.removeEventListener('click', this.editBtnHandler);
+    if (this.reorderBtn) this.reorderBtn.removeEventListener('click', this.reorderBtnHandler);
+    if (this.sizeBtn) this.sizeBtn.removeEventListener('click', this.sizeBtnHandler);
+    if (this.addBtn) this.addBtn.removeEventListener('click', this.addBtnHandler);
+    if (this.grid) {
+      this.grid.removeEventListener('click', this.gridClickHandler);
+      this.grid.removeEventListener('contextmenu', this.gridContextMenuHandler);
+      this.grid.removeEventListener('dragstart', this.handleDragStart);
+      this.grid.removeEventListener('dragend', this.handleDragEnd);
+      this.grid.removeEventListener('dragover', this.handleDragOver);
+      this.grid.removeEventListener('drop', this.handleDrop);
+      this.grid.removeEventListener('dragenter', this.handleDragEnter);
+      this.grid.removeEventListener('dragleave', this.handleDragLeave);
+    }
+    
     // Clean up context menu if exists
     const menu = document.querySelector('.quick-link-context-menu');
     if (menu) {
       menu.remove();
     }
+    
+    // Clean up any open modals
+    const modals = document.querySelectorAll('.quick-link-modal-backdrop');
+    modals.forEach(modal => modal.remove());
+    
+    // Clear references
+    this.container = null;
+    this.links = null;
+    this.draggedElement = null;
+    this.dropTarget = null;
   }
 }

@@ -1,4 +1,5 @@
 // Todo Widget
+import { escapeHtml, sanitizeText } from '../utils/sanitizer.js';
 
 export class TodoWidget {
   constructor(container, options) {
@@ -2910,8 +2911,11 @@ export class TodoWidget {
   attachListeners() {
     // Add todo
     const addTodo = () => {
-      const text = this.todoInput.value.trim();
-      if (!text) return;
+      const rawText = this.todoInput.value.trim();
+      if (!rawText) return;
+      
+      // Sanitize the input
+      const text = sanitizeText(rawText, { allowNewlines: false });
       
       const todo = {
         id: Date.now().toString(),
@@ -4097,7 +4101,39 @@ export class TodoWidget {
   }
   
   destroy() {
-    // Clean up if needed
+    // Remove all event listeners
+    if (this.todoAddBtn) this.todoAddBtn.removeEventListener('click', this.addTodoHandler);
+    if (this.todoInput) this.todoInput.removeEventListener('keydown', this.todoInputKeyHandler);
+    if (this.todoCopyBtn) this.todoCopyBtn.removeEventListener('click', this.todoCopyHandler);
+    if (this.todoSearch) this.todoSearch.removeEventListener('input', this.todoSearchHandler);
+    if (this.todoSearch) this.todoSearch.removeEventListener('keydown', this.todoSearchKeyHandler);
+    if (this.todoSearchClear) this.todoSearchClear.removeEventListener('click', this.todoSearchClearHandler);
+    if (this.todoList) {
+      this.todoList.removeEventListener('click', this.todoListClickHandler);
+      this.todoList.removeEventListener('contextmenu', this.todoListContextMenuHandler);
+      this.todoList.removeEventListener('blur', this.todoListBlurHandler);
+      this.todoList.removeEventListener('keydown', this.todoListKeydownHandler);
+      this.todoList.removeEventListener('dragstart', this.handleDragStart);
+      this.todoList.removeEventListener('dragend', this.handleDragEnd);
+      this.todoList.removeEventListener('dragover', this.handleDragOver);
+      this.todoList.removeEventListener('drop', this.handleDrop);
+      this.todoList.removeEventListener('dragenter', this.handleDragEnter);
+      this.todoList.removeEventListener('dragleave', this.handleDragLeave);
+    }
+    
+    // Remove document event listeners
+    document.removeEventListener('click', this.documentClickHandler);
+    
+    // Clear any timeouts
+    if (this.searchTimeout) clearTimeout(this.searchTimeout);
+    if (this.saveTimeout) clearTimeout(this.saveTimeout);
+    
+    // Clear references
+    this.container = null;
+    this.todos = null;
+    this.filteredTodos = null;
+    this.draggedItem = null;
+    this.draggedTodoId = null;
   }
 
   // Drag and drop handlers
