@@ -28,18 +28,40 @@ export class SpaceManager {
   
   async loadSpaces() {
     const savedSpaces = await this.storage.get('spaces', []);
-    this.spaces = savedSpaces;
+    this.spaces = savedSpaces.map(space => ({
+      layout: 'dashboard',
+      canvasTabs: [],
+      canvasSettings: { snapToGrid: false, height: null },
+      ...space,
+      // Ensure we always have arrays/objects even if undefined in saved data
+      canvasTabs: space?.canvasTabs ? [...space.canvasTabs] : [],
+      canvasSettings: {
+        snapToGrid: false,
+        height: space?.canvasSettings?.height ?? null,
+        ...(space?.canvasSettings || {})
+      }
+    }));
   }
   
   async saveSpaces() {
     await this.storage.set('spaces', this.spaces, true);
   }
   
-  async createSpace(name) {
+  async createSpace(name, options = {}) {
+    const {
+      icon = '🌟',
+      layout = 'dashboard',
+      canvasTabs = [],
+      canvasSettings = { snapToGrid: false, height: null }
+    } = options;
+
     const space = {
       id: `space-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       name: name,
-      icon: '🌟', // Default icon
+      icon,
+      layout,
+      canvasTabs,
+      canvasSettings,
       createdAt: Date.now(),
       widgets: {},
       widgetOrder: []
@@ -100,6 +122,10 @@ export class SpaceManager {
   getAllSpaces() {
     return this.spaces;
   }
+
+  getSpace(spaceId = this.currentSpaceId) {
+    return this.spaces.find(s => s.id === spaceId);
+  }
   
   // Widget management for current space
   async getWidgetsForSpace(spaceId = this.currentSpaceId) {
@@ -129,4 +155,36 @@ export class SpaceManager {
   async saveWidgetOrderForSpace(order, spaceId = this.currentSpaceId) {
     await this.storage.set(`widgetOrder-${spaceId}`, order, true);
   }
+
+  async getCanvasState(spaceId = this.currentSpaceId) {
+    const space = this.getSpace(spaceId);
+    if (!space) {
+      return {
+        tabs: [],
+        settings: { snapToGrid: false }
+      };
+    }
+
+    return {
+      tabs: Array.isArray(space.canvasTabs) ? [...space.canvasTabs] : [],
+      settings: {
+        snapToGrid: false,
+        ...(space.canvasSettings || {})
+      }
+    };
+  }
+
+  async saveCanvasState(spaceId = this.currentSpaceId, state = {}) {
+    const space = this.getSpace(spaceId);
+    if (!space) return;
+
+    space.canvasTabs = Array.isArray(state.tabs) ? [...state.tabs] : [];
+    space.canvasSettings = {
+      ...(space.canvasSettings || {}),
+      ...(state.settings || {})
+    };
+
+    await this.saveSpaces();
+  }
 }
+

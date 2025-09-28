@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https: data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://api.openweathermap.org https://api.quotable.io; font-src 'self';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https: data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self'; connect-src 'self' https://api.openweathermap.org https://api.quotable.io; font-src 'self' https://fonts.gstatic.com;">
   <title>New Tab - TabZen</title>
   <link rel="stylesheet" href="../styles/global.css">
   <link rel="stylesheet" href="newtab.css">
@@ -135,6 +135,31 @@
       <!-- Mini links will be dynamically inserted here -->
       <button class="mini-quick-link-add" id="miniQuickLinkAdd" title="Add quick link">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Tab Canvas Workspace -->
+    <div class="tab-canvas" id="tabCanvas">
+      <div class="tab-canvas-inner" id="tabCanvasInner"></div>
+      <div class="tab-canvas-empty" id="tabCanvasEmpty">
+        <div class="tab-canvas-empty-illustration"></div>
+        <h3>Blank Canvas for Your Tabs</h3>
+        <p>Arrange floating tab cards anywhere, group them and jump back into your workflows in a click.</p>
+        <button class="btn btn-primary" id="tabCanvasEmptyAdd">Add your first tab</button>
+      </div>
+      <button type="button" class="tab-canvas-resize-handle" id="tabCanvasResizeHandle" aria-label="Drag to resize canvas" title="Drag to resize canvas">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="8 6 12 2 16 6"></polyline>
+          <line x1="12" y1="3" x2="12" y2="21"></line>
+          <polyline points="8 18 12 22 16 18"></polyline>
+        </svg>
+        <span>Resize canvas</span>
+      </button>
+      <button class="tab-canvas-add-btn" id="tabCanvasAddBtn" aria-label="Add canvas tab tile">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
@@ -368,10 +393,95 @@
               <!-- Icons will be dynamically added here -->
             </div>
           </label>
+          <div class="form-label">
+            <span>Space Layout</span>
+            <div class="space-layout-options" id="spaceLayoutOptions">
+              <button type="button" class="space-layout-option selected" data-layout="dashboard">
+                <div class="space-layout-icon">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="4"></rect>
+                    <path d="M9 3v18M3 9h18"></path>
+                  </svg>
+                </div>
+                <div class="space-layout-copy">
+                  <strong>Dashboard</strong>
+                  <p>Widget grid with cards, todos, weather, and more.</p>
+                </div>
+              </button>
+              <button type="button" class="space-layout-option" data-layout="tabCanvas">
+                <div class="space-layout-icon">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="4" y="4" width="8" height="6" rx="2"></rect>
+                    <rect x="12" y="10" width="8" height="6" rx="2"></rect>
+                    <rect x="6" y="14" width="8" height="6" rx="2"></rect>
+                  </svg>
+                </div>
+                <div class="space-layout-copy">
+                  <strong>Tab Canvas</strong>
+                  <p>Blank workspace with movable tab cards you can drag anywhere.</p>
+                </div>
+              </button>
+            </div>
+          </div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" id="cancelSpaceBtn">Cancel</button>
           <button class="btn btn-primary" id="saveSpaceBtn">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Canvas Tile Modal -->
+  <div class="modal" id="tabCanvasTileModal">
+    <div class="modal-content modal-compact">
+      <div class="modal-header">
+        <h2 id="tabCanvasTileModalTitle">Add Canvas Tab</h2>
+        <button class="icon-button" id="closeTabCanvasTileModal" aria-label="Close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="space-editor-form">
+          <label class="form-label">
+            <span>Tab Name</span>
+            <input type="text" id="tabCanvasTileName" class="form-input" placeholder="Design Sync" maxlength="60">
+          </label>
+          <label class="form-label">
+            <span>URL</span>
+            <input type="url" id="tabCanvasTileUrl" class="form-input" placeholder="https://example.com">
+          </label>
+          <div class="form-label">
+            <span>Accent</span>
+            <div class="tab-canvas-color-picker" id="tabCanvasTileColors">
+              <button type="button" class="color-swatch selected" data-color="#EEF2FF" style="--swatch-color: #EEF2FF"></button>
+              <button type="button" class="color-swatch" data-color="#E0E7FF" style="--swatch-color: #E0E7FF"></button>
+              <button type="button" class="color-swatch" data-color="#E0F2FE" style="--swatch-color: #E0F2FE"></button>
+              <button type="button" class="color-swatch" data-color="#ECFEFF" style="--swatch-color: #ECFEFF"></button>
+              <button type="button" class="color-swatch" data-color="#D1FAE5" style="--swatch-color: #D1FAE5"></button>
+              <button type="button" class="color-swatch" data-color="#FDE68A" style="--swatch-color: #FDE68A"></button>
+              <button type="button" class="color-swatch" data-color="#FEF3C7" style="--swatch-color: #FEF3C7"></button>
+              <button type="button" class="color-swatch" data-color="#FFE4E6" style="--swatch-color: #FFE4E6"></button>
+              <button type="button" class="color-swatch" data-color="#FBCFE8" style="--swatch-color: #FBCFE8"></button>
+              <button type="button" class="color-swatch" data-color="#F5D0FE" style="--swatch-color: #F5D0FE"></button>
+              <button type="button" class="color-swatch" data-color="#EDE9FE" style="--swatch-color: #EDE9FE"></button>
+              <button type="button" class="color-swatch" data-color="#F1F5F9" style="--swatch-color: #F1F5F9"></button>
+              <label class="color-swatch color-swatch-custom" id="tabCanvasTileCustomColorSwatch" data-color="#A855F7" title="Choose a custom accent">
+                <input type="color" id="tabCanvasTileCustomColor" value="#A855F7" aria-label="Choose a custom accent">
+                <span>Custom</span>
+              </label>
+            </div>
+          </div>
+          <div class="form-error hidden" id="tabCanvasTileError">Please enter a valid URL</div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary danger hidden" id="deleteTabCanvasTileBtn">Remove</button>
+          <div class="modal-footer-spacer"></div>
+          <button class="btn btn-secondary" id="cancelTabCanvasTileBtn">Cancel</button>
+          <button class="btn btn-primary" id="saveTabCanvasTileBtn">Save</button>
         </div>
       </div>
     </div>
@@ -692,3 +802,6 @@
   <script type="module" src="newtab.js"></script>
 </body>
 </html>
+
+
+

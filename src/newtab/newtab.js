@@ -23,6 +23,7 @@ import { RecentTabsWidget } from '../widgets/recentTabs.js';
 import { WebViewerWidget } from '../widgets/webViewer.js';
 import { TabSaverWidget } from '../widgets/tabSaver.js';
 import { VisionBoardWidget } from '../widgets/visionBoard.js';
+import { TabCanvasManager } from '../utils/tabCanvas.js';
 
 class TabZenApp {
   constructor() {
@@ -39,6 +40,7 @@ class TabZenApp {
     this.scratchpad = null;
     this.miniQuickLinks = null;
     this.visionBoard = null;
+    this.tabCanvasManager = null;
     
     // Search state
     this.searchTimeout = null;
@@ -109,7 +111,26 @@ class TabZenApp {
       iconPicker: document.getElementById('iconPicker'),
       saveSpaceBtn: document.getElementById('saveSpaceBtn'),
       cancelSpaceBtn: document.getElementById('cancelSpaceBtn'),
-      scratchpadBtn: document.getElementById('scratchpadBtn')
+      spaceLayoutOptions: document.getElementById('spaceLayoutOptions'),
+      scratchpadBtn: document.getElementById('scratchpadBtn'),
+      tabCanvas: document.getElementById('tabCanvas'),
+      tabCanvasInner: document.getElementById('tabCanvasInner'),
+      tabCanvasEmpty: document.getElementById('tabCanvasEmpty'),
+      tabCanvasAddBtn: document.getElementById('tabCanvasAddBtn'),
+      tabCanvasResizeHandle: document.getElementById('tabCanvasResizeHandle'),
+      tabCanvasEmptyAdd: document.getElementById('tabCanvasEmptyAdd'),
+      tabCanvasTileModal: document.getElementById('tabCanvasTileModal'),
+      tabCanvasTileModalTitle: document.getElementById('tabCanvasTileModalTitle'),
+      tabCanvasTileName: document.getElementById('tabCanvasTileName'),
+      tabCanvasTileUrl: document.getElementById('tabCanvasTileUrl'),
+      tabCanvasTileColors: document.getElementById('tabCanvasTileColors'),
+      tabCanvasTileCustomColor: document.getElementById('tabCanvasTileCustomColor'),
+      tabCanvasTileCustomColorSwatch: document.getElementById('tabCanvasTileCustomColorSwatch'),
+      tabCanvasTileError: document.getElementById('tabCanvasTileError'),
+      saveTabCanvasTileBtn: document.getElementById('saveTabCanvasTileBtn'),
+      cancelTabCanvasTileBtn: document.getElementById('cancelTabCanvasTileBtn'),
+      closeTabCanvasTileModal: document.getElementById('closeTabCanvasTileModal'),
+      deleteTabCanvasTileBtn: document.getElementById('deleteTabCanvasTileBtn')
     };
     
     this.init();
@@ -148,27 +169,27 @@ class TabZenApp {
       // Initialize vision board
       this.initVisionBoard();
       
+      // Initialize tab canvas workspace
+      this.initTabCanvas();
+
       // Initialize mini quick links
       this.initMiniQuickLinks();
       
-      // Load widgets for current space
-      await this.widgetManager.loadWidgets(this.elements.widgetGrid);
-      
-      // Initialize arrow navigation
-      this.initArrowNavigation();
-      
-      // Initialize resize
-      this.initResize();
+      // Load layout for current space
+      await this.applySpaceLayout({ reloadWidgets: true });
+
+      const currentSpace = this.spaceManager.getCurrentSpace();
+      if (!currentSpace || currentSpace.layout !== 'tabCanvas') {
+        this.initArrowNavigation();
+        this.initResize();
+      }
       
       // Start timers
       this.startTimers();
       
       // Listen for space switches
       this.eventBus.on('space:switched', async () => {
-        await this.widgetManager.loadWidgets(this.elements.widgetGrid);
-        this.initArrowNavigation();
-        this.initResize();
-        this.renderSpaceTabs(); // Update active tab indicator
+        await this.handleSpaceSwitch();
       });
       
       console.log('TabZen initialized successfully');
@@ -1455,6 +1476,86 @@ class TabZenApp {
     this.miniQuickLinks = new MiniQuickLinksManager(this.storage, this.eventBus);
     await this.miniQuickLinks.init();
   }
+
+  initTabCanvas() {
+    if (this.tabCanvasManager || !this.elements.tabCanvas) {
+      return;
+    }
+
+    this.tabCanvasManager = new TabCanvasManager({
+      container: this.elements.tabCanvas,
+      inner: this.elements.tabCanvasInner,
+      emptyState: this.elements.tabCanvasEmpty,
+      addButton: this.elements.tabCanvasAddBtn,
+      resizeHandle: this.elements.tabCanvasResizeHandle,
+      modal: {
+        root: this.elements.tabCanvasTileModal,
+        title: this.elements.tabCanvasTileModalTitle,
+        nameInput: this.elements.tabCanvasTileName,
+        urlInput: this.elements.tabCanvasTileUrl,
+        colorPicker: this.elements.tabCanvasTileColors,
+        customColorInput: this.elements.tabCanvasTileCustomColor,
+        customColorSwatch: this.elements.tabCanvasTileCustomColorSwatch,
+        error: this.elements.tabCanvasTileError,
+        saveBtn: this.elements.saveTabCanvasTileBtn,
+        cancelBtn: this.elements.cancelTabCanvasTileBtn,
+        closeBtn: this.elements.closeTabCanvasTileModal,
+        deleteBtn: this.elements.deleteTabCanvasTileBtn
+      },
+      spaceManager: this.spaceManager,
+      eventBus: this.eventBus
+    });
+
+    this.tabCanvasManager.init();
+
+    this.elements.tabCanvasEmptyAdd?.addEventListener('click', () => {
+      this.tabCanvasManager?.openTileEditor();
+    });
+  }
+
+  async applySpaceLayout({ reloadWidgets = true } = {}) {
+    const currentSpace = this.spaceManager.getCurrentSpace();
+    if (!currentSpace) return;
+
+    const isCanvasSpace = currentSpace.layout === 'tabCanvas';
+    const { widgetGrid, addWidgetBtn } = this.elements;
+
+    if (isCanvasSpace) {
+      if (widgetGrid) {
+        widgetGrid.style.display = 'none';
+        widgetGrid.innerHTML = '';
+      }
+      if (addWidgetBtn) {
+        addWidgetBtn.style.display = 'none';
+      }
+      this.tabCanvasManager?.setVisible(true);
+      await this.tabCanvasManager?.loadSpace(currentSpace.id);
+      this.widgetManager.clearWidgets();
+    } else {
+      if (widgetGrid) {
+        widgetGrid.style.display = '';
+      }
+      if (addWidgetBtn) {
+        addWidgetBtn.style.display = '';
+      }
+      this.tabCanvasManager?.setVisible(false);
+      if (reloadWidgets && widgetGrid) {
+        await this.widgetManager.loadWidgets(widgetGrid);
+      }
+    }
+  }
+
+  async handleSpaceSwitch() {
+    await this.applySpaceLayout({ reloadWidgets: true });
+    const currentSpace = this.spaceManager.getCurrentSpace();
+
+    if (!currentSpace || currentSpace.layout !== 'tabCanvas') {
+      this.initArrowNavigation();
+      this.initResize();
+    }
+
+    this.renderSpaceTabs();
+  }
   
   initCommandPalette() {
     // Create command palette instance
@@ -1547,7 +1648,9 @@ class TabZenApp {
     this.renderSpaceTabs();
     this.currentEditingSpaceId = null;
     this.selectedIcon = '🌟';
+    this.selectedSpaceLayout = 'dashboard';
     this.initializeIconPicker();
+    this.initializeSpaceLayoutPicker();
   }
   
   renderSpaceTabs() {
@@ -1690,6 +1793,29 @@ class TabZenApp {
       }
     });
   }
+
+  initializeSpaceLayoutPicker() {
+    const optionsContainer = this.elements.spaceLayoutOptions;
+    if (!optionsContainer) return;
+
+    optionsContainer.querySelectorAll('.space-layout-option').forEach(option => {
+      option.addEventListener('click', () => {
+        this.setSpaceLayoutSelection(option.dataset.layout);
+      });
+    });
+
+    this.setSpaceLayoutSelection(this.selectedSpaceLayout || 'dashboard');
+  }
+
+  setSpaceLayoutSelection(layout = 'dashboard') {
+    this.selectedSpaceLayout = layout || 'dashboard';
+    const optionsContainer = this.elements.spaceLayoutOptions;
+    if (!optionsContainer) return;
+
+    optionsContainer.querySelectorAll('.space-layout-option').forEach(option => {
+      option.classList.toggle('selected', option.dataset.layout === this.selectedSpaceLayout);
+    });
+  }
   
   showSpaceEditor(spaceId = null) {
     this.currentEditingSpaceId = spaceId;
@@ -1701,16 +1827,19 @@ class TabZenApp {
       this.elements.spaceEditorTitle.textContent = 'Edit Space';
       this.elements.spaceNameInput.value = space.name;
       this.selectedIcon = space.icon;
+      this.selectedSpaceLayout = space.layout || 'dashboard';
     } else {
       this.elements.spaceEditorTitle.textContent = 'New Space';
       this.elements.spaceNameInput.value = '';
       this.selectedIcon = '🌟';
+      this.selectedSpaceLayout = 'dashboard';
     }
     
     // Update selected icon
     this.elements.iconPicker.querySelectorAll('.icon-picker-item').forEach(item => {
       item.classList.toggle('selected', item.dataset.icon === this.selectedIcon);
     });
+    this.setSpaceLayoutSelection(this.selectedSpaceLayout);
     
     this.elements.spaceEditorModal.style.display = 'flex';
     setTimeout(() => this.elements.spaceNameInput.focus(), 100);
@@ -1729,24 +1858,26 @@ class TabZenApp {
     }
     
     if (this.currentEditingSpaceId) {
-      await this.updateSpace(this.currentEditingSpaceId, name, this.selectedIcon);
+      await this.updateSpace(this.currentEditingSpaceId, name, this.selectedIcon, this.selectedSpaceLayout);
     } else {
-      await this.createSpace(name, this.selectedIcon);
+      await this.createSpace(name, this.selectedIcon, this.selectedSpaceLayout);
     }
     
     this.hideSpaceEditor();
   }
   
-  async createSpace(name, icon) {
-    const space = await this.spaceManager.createSpace(name);
-    await this.spaceManager.updateSpace(space.id, { icon });
+  async createSpace(name, icon, layout) {
+    const space = await this.spaceManager.createSpace(name, { icon, layout });
     await this.spaceManager.switchSpace(space.id);
     this.renderSpaceTabs();
   }
   
-  async updateSpace(spaceId, name, icon) {
-    await this.spaceManager.updateSpace(spaceId, { name, icon });
+  async updateSpace(spaceId, name, icon, layout) {
+    await this.spaceManager.updateSpace(spaceId, { name, icon, layout });
     this.renderSpaceTabs();
+    if (spaceId === this.spaceManager.currentSpaceId) {
+      await this.handleSpaceSwitch();
+    }
   }
   
   async deleteSpace(spaceId) {
@@ -2120,7 +2251,8 @@ class TabZenApp {
     }
     
     // Parse tasks from textarea (one per line)
-    const tasks = tasksText.split('\n')
+    const tasks = tasksText
+      .split(/\r?\n/)
       .map(line => line.trim())
       .filter(line => line.length > 0)
       .map(text => ({ text, completed: false }));
@@ -2259,7 +2391,10 @@ class TabZenApp {
     const widgetInstance = this.widgetManager.widgets.get(widgetId);
     if (widgetInstance && widgetInstance.applyTemplate) {
       // Show options dialog
-      const choice = confirm(`Apply "${template.name}" template?\n\nOK: Replace current tasks\nCancel: Add to current tasks`);
+      const choice = confirm(`Apply "${template.name}" template?
+
+OK: Replace current tasks
+Cancel: Add to current tasks`);
       widgetInstance.applyTemplate(template.id, choice ? 'replace' : 'append');
       this.showToast(`Template "${template.name}" applied`);
     }
@@ -2276,7 +2411,9 @@ class TabZenApp {
     this.elements.todoTemplateModalTitle.textContent = 'Edit Todo Template';
     this.elements.saveTodoTemplateBtn.textContent = 'Update Template';
     this.elements.todoTemplateNameInput.value = template.name;
-    this.elements.todoTemplateTasksInput.value = template.items.map(item => item.text).join('\n');
+    this.elements.todoTemplateTasksInput.value = template.items
+      .map(item => item.text)
+      .join('\r\n');
     
     // Show the modal
     this.showModal(this.elements.todoTemplateModal);
@@ -2370,3 +2507,7 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
   }
 });
+
+
+
+
