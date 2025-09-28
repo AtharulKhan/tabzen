@@ -322,69 +322,47 @@ body {
 .tab-canvas-tile {
   position: absolute;
   display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  padding: 20px;
-  border-radius: 22px;
-  background: var(--tile-surface, var(--surface));
-  border: 1px solid var(--tile-border-color, rgba(148, 163, 184, 0.26));
-  box-shadow: 0 20px 40px var(--tile-shadow-color, rgba(15, 23, 42, 0.18));
+  align-items: center;
+  justify-content: center;
+  width: var(--tab-canvas-tile-size, 56px);
+  height: var(--tab-canvas-tile-size, 56px);
+  border-radius: 18px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
   color: var(--tile-text-color, var(--foreground));
   cursor: grab;
   user-select: none;
-  transition: box-shadow var(--transition-base), transform var(--transition-base);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  transition: transform var(--transition-base);
 }
 
-.tab-canvas-tile::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), transparent);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--transition-base);
+.tab-canvas-tile:active {
+  cursor: grabbing;
 }
 
-.tab-canvas-tile:hover::before {
-  opacity: 1;
+.tab-canvas-tile:hover,
+.tab-canvas-tile:focus-within {
+  transform: translateY(-4px);
 }
 
-.tab-canvas-tile:hover {
-  box-shadow: 0 24px 50px var(--tile-shadow-hover, rgba(15, 23, 42, 0.22));
-  transform: translateY(-2px);
-}
-
-[data-theme="dark"] .tab-canvas-tile {
-  background: var(--tile-surface, rgba(15, 23, 42, 0.88));
-  border-color: var(--tile-border-color, rgba(71, 85, 105, 0.45));
-  box-shadow: 0 24px 50px var(--tile-shadow-color, rgba(2, 6, 23, 0.55));
-}
-
-.tab-canvas-tile-header {
+.tab-canvas-tile-shell {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
+  justify-content: center;
+  width: 100%;
+  height: 100%;
 }
 
-.tab-canvas-tile-info {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-}
-
-.tab-canvas-tile-favicon {
-  width: 44px;
-  height: 44px;
+.tab-canvas-tile-favicon,
+.tab-canvas-tile-card-favicon {
+  width: 48px;
+  height: 48px;
   border-radius: 16px;
-  background: var(--tile-accent, rgba(148, 163, 184, 0.18));
+  background: var(--tile-accent, rgba(148, 163, 184, 0.12));
   background-image: var(--favicon-image, none);
-  background-size: 70%;
   background-position: center;
   background-repeat: no-repeat;
+  background-size: cover;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -392,24 +370,80 @@ body {
   font-weight: 600;
   font-size: 18px;
   letter-spacing: 0.01em;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.55);
-  transition: background var(--transition-base), color var(--transition-base), box-shadow var(--transition-base);
+  box-shadow: none;
+  overflow: hidden;
+  transition: transform var(--transition-base);
 }
 
-.tab-canvas-tile-favicon.has-favicon {
-  background-color: rgba(255, 255, 255, 0.9);
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
-  background-size: cover;
+.tab-canvas-tile-card-favicon {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  font-size: 15px;
+}
+
+.tab-canvas-tile:hover .tab-canvas-tile-favicon,
+.tab-canvas-tile:focus-within .tab-canvas-tile-favicon {
+  transform: scale(1.06);
 }
 
 .tab-canvas-tile-favicon-placeholder {
   pointer-events: none;
-  opacity: 0.8;
+  opacity: 0.85;
   font-size: 16px;
 }
 
-.tab-canvas-tile-favicon.has-favicon .tab-canvas-tile-favicon-placeholder {
+.tab-canvas-tile-favicon.has-favicon .tab-canvas-tile-favicon-placeholder,
+.tab-canvas-tile-card-favicon.has-favicon .tab-canvas-tile-favicon-placeholder {
   display: none;
+}
+
+.tab-canvas-tile-favicon.has-favicon,
+.tab-canvas-tile-card-favicon.has-favicon {
+  background-color: transparent;
+}
+
+.tab-canvas-tile-hover-card {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -90%) scale(0.92);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-base), transform var(--transition-base);
+  z-index: 40;
+}
+
+.tab-canvas-tile:hover .tab-canvas-tile-hover-card,
+.tab-canvas-tile:focus-within .tab-canvas-tile-hover-card {
+  opacity: 1;
+  transform: translate(-50%, -100%) scale(1);
+  pointer-events: auto;
+}
+
+.tab-canvas-tile-card {
+  min-width: 216px;
+  padding: 16px 18px 14px;
+  border-radius: 18px;
+  background: var(--tile-surface, rgba(255, 255, 255, 0.98));
+  border: 1px solid var(--tile-border-color, rgba(148, 163, 184, 0.26));
+  box-shadow: 0 24px 56px var(--tile-shadow-hover, rgba(15, 23, 42, 0.22));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tab-canvas-tile-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tab-canvas-tile-card-leading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .tab-canvas-tile-meta {
@@ -435,19 +469,40 @@ body {
   gap: 8px;
 }
 
-.tab-canvas-tile-body {
-  display: none;
+.tab-canvas-tile-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--tile-text-muted, rgba(30, 41, 59, 0.55));
+  font-size: 12px;
+}
+
+.tab-canvas-tile-hint {
+  white-space: nowrap;
 }
 
 .tab-canvas-tile-resize {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
-  background: repeating-linear-gradient(135deg, rgba(148, 163, 184, 0.5) 0, rgba(148, 163, 184, 0.5) 2px, transparent 2px, transparent 4px);
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  background: repeating-linear-gradient(135deg, rgba(148, 163, 184, 0.55) 0, rgba(148, 163, 184, 0.55) 2px, transparent 2px, transparent 4px);
   cursor: nwse-resize;
+}
+
+[data-theme="dark"] .tab-canvas-tile {
+  background: transparent;
+  box-shadow: none;
+}
+
+[data-theme="dark"] .tab-canvas-tile-card {
+  background: var(--tile-surface, rgba(17, 25, 40, 0.95));
+  border-color: var(--tile-border-color, rgba(71, 85, 105, 0.55));
+  box-shadow: 0 24px 56px rgba(2, 6, 23, 0.55);
+}
+
+[data-theme="dark"] .tab-canvas-tile-card-footer {
+  color: var(--tile-text-muted, rgba(226, 232, 240, 0.68));
 }
 
 .tab-canvas-context-menu {
@@ -1998,7 +2053,6 @@ body {
   padding: 8px 12px;
 }
 
-
 .tab-canvas-resize-handle {
   position: absolute;
   left: 50%;
@@ -2032,12 +2086,6 @@ body {
   background: rgba(148, 163, 184, 0.22);
   border-color: rgba(148, 163, 184, 0.5);
 }
-
-
-
-
-
-
 
 .tab-canvas-tile-actions .icon-button {
   width: 34px;

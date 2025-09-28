@@ -1,7 +1,7 @@
 // TabCanvasManager - Manages draggable tab tiles in a canvas layout
 
-const DEFAULT_TILE_WIDTH = 280;
-const DEFAULT_TILE_HEIGHT = 180;
+const DEFAULT_TILE_WIDTH = 56;
+const DEFAULT_TILE_HEIGHT = 56;
 const DEFAULT_COLORS = [
   '#EEF2FF',
   '#E0E7FF',
@@ -54,6 +54,7 @@ export class TabCanvasManager {
 
     this.resizeHandle = resizeHandle;
     this.faviconCache = new Map();
+    this.cancelClickTileId = null;
 
     this.boundOnPointerMove = this.onPointerMove.bind(this);
     this.boundOnPointerUp = this.onPointerUp.bind(this);
@@ -209,32 +210,44 @@ export class TabCanvasManager {
     const placeholder = this.escapeHtml(this.getTilePlaceholder(tile));
 
     element.innerHTML = `
-      <div class="tab-canvas-tile-header">
-        <div class="tab-canvas-tile-info">
-          <div class="tab-canvas-tile-favicon" aria-hidden="true">
-            <span class="tab-canvas-tile-favicon-placeholder">${placeholder}</span>
-          </div>
-          <div class="tab-canvas-tile-meta">
-            <span class="tab-canvas-tile-title" title="${escapedTitle}">${escapedTitle}</span>
-            <span class="tab-canvas-tile-url" title="${escapedUrl}">${displayUrl}</span>
-          </div>
-        </div>
-        <div class="tab-canvas-tile-actions">
-          <button class="icon-button tab-canvas-edit" title="Edit">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-            </svg>
-          </button>
-          <button class="icon-button tab-canvas-remove" title="Remove">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
+      <div class="tab-canvas-tile-shell" aria-hidden="true">
+        <div class="tab-canvas-tile-favicon">
+          <span class="tab-canvas-tile-favicon-placeholder">${placeholder}</span>
         </div>
       </div>
-      <div class="tab-canvas-tile-resize" aria-hidden="true"></div>
+      <div class="tab-canvas-tile-hover-card" role="presentation">
+        <div class="tab-canvas-tile-card">
+          <div class="tab-canvas-tile-card-header">
+            <div class="tab-canvas-tile-card-leading">
+              <div class="tab-canvas-tile-card-favicon" aria-hidden="true">
+                <span class="tab-canvas-tile-favicon-placeholder">${placeholder}</span>
+              </div>
+              <div class="tab-canvas-tile-meta">
+                <span class="tab-canvas-tile-title" title="${escapedTitle}">${escapedTitle}</span>
+                <span class="tab-canvas-tile-url" title="${escapedUrl}">${displayUrl}</span>
+              </div>
+            </div>
+            <div class="tab-canvas-tile-actions">
+              <button class="icon-button tab-canvas-edit" title="Edit">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+              <button class="icon-button tab-canvas-remove" title="Remove">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="tab-canvas-tile-card-footer">
+            <span class="tab-canvas-tile-hint">Click to open &middot; Right-click for more</span>
+            <div class="tab-canvas-tile-resize" aria-hidden="true"></div>
+          </div>
+        </div>
+      </div>
     `;
 
     const faviconEl = element.querySelector('.tab-canvas-tile-favicon');
@@ -242,11 +255,26 @@ export class TabCanvasManager {
       this.applyFavicon(faviconEl, tile);
     }
 
-    const header = element.querySelector('.tab-canvas-tile-header');
+    const cardFavicon = element.querySelector('.tab-canvas-tile-card-favicon');
+    if (cardFavicon) {
+      this.applyFavicon(cardFavicon, tile);
+    }
+
+    const shell = element.querySelector('.tab-canvas-tile-shell');
+    shell?.addEventListener('pointerdown', (event) => this.startDrag(event, tile.id));
+
+    const header = element.querySelector('.tab-canvas-tile-card-header');
     header?.addEventListener('pointerdown', (event) => this.startDrag(event, tile.id));
 
     element.addEventListener('click', (event) => {
       if (event.defaultPrevented) return;
+      if (this.cancelClickTileId === tile.id) {
+        this.cancelClickTileId = null;
+        return;
+      }
+      if (this.dragState?.tileId === tile.id) {
+        return;
+      }
       const target = event.target;
       if (target.closest('.tab-canvas-edit') || target.closest('.tab-canvas-remove')) {
         return;
@@ -272,7 +300,10 @@ export class TabCanvasManager {
     });
 
     const resizeHandle = element.querySelector('.tab-canvas-tile-resize');
-    resizeHandle?.addEventListener('pointerdown', (event) => this.startResize(event, tile.id));
+    resizeHandle?.addEventListener('pointerdown', (event) => {
+      event.stopPropagation();
+      this.startResize(event, tile.id);
+    });
 
     element.addEventListener('pointerdown', () => this.bringToFront(tile.id));
 
@@ -323,8 +354,10 @@ export class TabCanvasManager {
   applyFavicon(faviconEl, tile) {
     if (!faviconEl) return;
 
+    // Reset favicon state
     faviconEl.classList.remove('has-favicon');
     faviconEl.style.removeProperty('--favicon-image');
+    faviconEl.style.backgroundImage = '';
 
     const placeholder = faviconEl.querySelector('.tab-canvas-tile-favicon-placeholder');
     if (placeholder) {
@@ -338,8 +371,15 @@ export class TabCanvasManager {
 
     this.tryLoadFavicon(candidates, (loadedUrl) => {
       if (!loadedUrl) return;
-      faviconEl.style.setProperty('--favicon-image', `url("${loadedUrl}")`);
+
+      const faviconUrl = `url("${loadedUrl}")`;
+
+      // Apply favicon image
+      faviconEl.style.setProperty('--favicon-image', faviconUrl);
+      faviconEl.style.backgroundImage = faviconUrl;
       faviconEl.classList.add('has-favicon');
+
+      // Cache the favicon URL
       tile.faviconUrl = loadedUrl;
     });
   }
@@ -352,10 +392,22 @@ export class TabCanvasManager {
 
     const normalizedUrl = this.normalizeUrl(url);
     if (normalizedUrl) {
+      // Try Chrome's built-in favicon API first (if available)
+      if (chrome?.runtime?.id) {
+        const chromeApiUrl = new URL(chrome.runtime.getURL("/_favicon/"));
+        chromeApiUrl.searchParams.set("pageUrl", normalizedUrl);
+        chromeApiUrl.searchParams.set("size", "64");
+        candidates.push(chromeApiUrl.toString());
+      }
+
+      // Fallback to Google's S2 service
       candidates.push(`https://www.google.com/s2/favicons?sz=128&domain_url=${encodeURIComponent(normalizedUrl)}`);
+
       const hostname = this.extractHostname(normalizedUrl);
       if (hostname && hostname !== 'Untitled') {
         candidates.push(`https://icons.duckduckgo.com/ip3/${hostname}.ico`);
+        candidates.push(`https://${hostname}/favicon.ico`);
+        candidates.push(`https://${hostname}/apple-touch-icon.png`);
       }
     }
 
@@ -399,7 +451,10 @@ export class TabCanvasManager {
     this.dragState = {
       tileId,
       offsetX: event.clientX - bounds.left - tile.x,
-      offsetY: event.clientY - bounds.top - tile.y
+      offsetY: event.clientY - bounds.top - tile.y,
+      startX: tile.x,
+      startY: tile.y,
+      moved: false
     };
 
     event.target.setPointerCapture(event.pointerId);
@@ -436,9 +491,31 @@ export class TabCanvasManager {
   }
 
   onPointerUp() {
-    if (this.dragState || this.resizeState) {
-      this.persistTiles();
+    const endedDrag = this.dragState;
+    const endedResize = this.resizeState;
+
+    const suppressClick = (tileId) => {
+      if (!tileId) return;
+      this.cancelClickTileId = tileId;
+      setTimeout(() => {
+        if (this.cancelClickTileId === tileId) {
+          this.cancelClickTileId = null;
+        }
+      }, 150);
+    };
+
+    if (endedDrag?.moved) {
+      suppressClick(endedDrag.tileId);
     }
+
+    if (endedResize) {
+      suppressClick(endedResize.tileId);
+    }
+
+    if (endedDrag || endedResize) {
+      this.persistState();
+    }
+
     this.dragState = null;
     this.resizeState = null;
     window.removeEventListener('pointermove', this.boundOnPointerMove);
@@ -452,6 +529,12 @@ export class TabCanvasManager {
     const bounds = this.inner.getBoundingClientRect();
     let x = event.clientX - bounds.left - this.dragState.offsetX;
     let y = event.clientY - bounds.top - this.dragState.offsetY;
+
+    if (!this.dragState.moved) {
+      if (Math.abs(x - tile.x) > 2 || Math.abs(y - tile.y) > 2) {
+        this.dragState.moved = true;
+      }
+    }
 
     x = Math.max(0, Math.min(x, bounds.width - tile.width));
     y = Math.max(0, Math.min(y, bounds.height - tile.height));
@@ -474,8 +557,8 @@ export class TabCanvasManager {
     let width = this.resizeState.startWidth + (event.clientX - bounds.left - this.resizeState.startX);
     let height = this.resizeState.startHeight + (event.clientY - bounds.top - this.resizeState.startY);
 
-    width = Math.max(200, Math.min(width, bounds.width - tile.x));
-    height = Math.max(120, Math.min(height, bounds.height - tile.y));
+    width = Math.max(56, Math.min(width, bounds.width - tile.x));
+    height = Math.max(56, Math.min(height, bounds.height - tile.y));
 
     tile.width = Math.round(width);
     tile.height = Math.round(height);
@@ -811,8 +894,8 @@ export class TabCanvasManager {
       url: tile.url || '',
       color: this.normalizeColor(tile?.color),
       faviconUrl: tile.faviconUrl || this.buildFaviconUrl(tile.url || ''),
-      width: tile.width || DEFAULT_TILE_WIDTH,
-      height: tile.height || DEFAULT_TILE_HEIGHT,
+      width: (typeof tile.width === 'number' && tile.width <= 200 ? Math.max(56, tile.width) : DEFAULT_TILE_WIDTH),
+      height: (typeof tile.height === 'number' && tile.height <= 200 ? Math.max(56, tile.height) : DEFAULT_TILE_HEIGHT),
       x: typeof tile.x === 'number' ? tile.x : 32,
       y: typeof tile.y === 'number' ? tile.y : 32,
       z: tile.z || this.nextZ++
@@ -943,20 +1026,4 @@ export class TabCanvasManager {
       .replace(/'/g, '&#039;');
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
