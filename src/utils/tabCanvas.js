@@ -25,6 +25,7 @@ export class TabCanvasManager {
     inner,
     emptyState,
     addButton,
+    arrangeButton,
     resizeHandle,
     modal,
     spaceManager,
@@ -34,6 +35,7 @@ export class TabCanvasManager {
     this.inner = inner;
     this.emptyState = emptyState;
     this.addButton = addButton;
+    this.arrangeButton = arrangeButton;
     this.modal = modal;
     this.spaceManager = spaceManager;
     this.eventBus = eventBus;
@@ -65,6 +67,9 @@ export class TabCanvasManager {
   async init() {
     if (this.addButton) {
       this.addButton.addEventListener('click', () => this.openTileEditor());
+    }
+    if (this.arrangeButton) {
+      this.arrangeButton.addEventListener('click', () => this.autoArrangeTiles());
     }
     this.bindModal();
     this.bindCanvasResizeHandle();
@@ -194,8 +199,9 @@ export class TabCanvasManager {
 
   createTileElement(tile) {
     const element = document.createElement('div');
-    element.className = 'tab-canvas-tile';
+    element.className = tile.type === 'group' ? 'tab-canvas-group' : 'tab-canvas-tile';
     element.dataset.tileId = tile.id;
+    element.dataset.tileType = tile.type;
     element.style.left = `${tile.x}px`;
     element.style.top = `${tile.y}px`;
     element.style.width = `${tile.width}px`;
@@ -203,6 +209,10 @@ export class TabCanvasManager {
     element.style.zIndex = tile.z || 1;
 
     this.applyTileTheme(element, tile);
+
+    if (tile.type === 'group') {
+      return this.createGroupElement(element, tile);
+    }
 
     const escapedTitle = this.escapeHtml(tile.title);
     const escapedUrl = this.escapeHtml(tile.url);
@@ -243,7 +253,7 @@ export class TabCanvasManager {
             </div>
           </div>
           <div class="tab-canvas-tile-card-footer">
-            <span class="tab-canvas-tile-hint">Click to open &middot; Right-click for more</span>
+            <span class="tab-canvas-tile-hint">Click to open &middot; Ctrl+Click for window &middot; Right-click for more</span>
             <div class="tab-canvas-tile-resize" aria-hidden="true"></div>
           </div>
         </div>
@@ -279,7 +289,13 @@ export class TabCanvasManager {
       if (target.closest('.tab-canvas-edit') || target.closest('.tab-canvas-remove')) {
         return;
       }
-      this.openTab(tile);
+
+      // Check if Ctrl or Cmd key is held
+      if (event.ctrlKey || event.metaKey) {
+        this.openPopup(tile);
+      } else {
+        this.openTab(tile);
+      }
     });
 
     element.addEventListener('contextmenu', (event) => {
@@ -309,6 +325,230 @@ export class TabCanvasManager {
 
     return element;
   }
+  createGroupElement(element, group) {
+    const tileCount = group.tiles?.length || 0;
+    const escapedTitle = this.escapeHtml(group.title);
+
+    element.innerHTML = `
+      <div class="tab-canvas-group-header">
+        <div class="tab-canvas-group-title" contenteditable="true" spellcheck="false">${escapedTitle}</div>
+        <span class="tab-canvas-group-count">${tileCount} tab${tileCount !== 1 ? 's' : ''}</span>
+      </div>
+      <div class="tab-canvas-group-preview">
+        ${this.createGroupPreview(group)}
+      </div>
+      <div class="tab-canvas-group-actions">
+        <button class="group-action-btn" data-action="open-all" title="Open all tabs">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/>
+          </svg>
+        </button>
+        <button class="group-action-btn" data-action="open-window" title="Open all in new window">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <line x1="9" y1="3" x2="9" y2="21"/>
+          </svg>
+        </button>
+        <button class="group-action-btn" data-action="ungroup" title="Ungroup">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="8" y1="6" x2="21" y2="6"/>
+            <line x1="8" y1="12" x2="21" y2="12"/>
+            <line x1="8" y1="18" x2="21" y2="18"/>
+            <line x1="3" y1="6" x2="3.01" y2="6"/>
+            <line x1="3" y1="12" x2="3.01" y2="12"/>
+            <line x1="3" y1="18" x2="3.01" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    `;
+
+    // Handle group title editing
+    const titleEl = element.querySelector('.tab-canvas-group-title');
+    titleEl?.addEventListener('blur', async () => {
+      group.title = titleEl.textContent.trim() || 'Group';
+      await this.persistState();
+    });
+
+    titleEl?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        titleEl.blur();
+      }
+    });
+
+    // Handle group actions
+    element.addEventListener('click', async (event) => {
+      const actionBtn = event.target.closest('[data-action]');
+      if (!actionBtn) return;
+
+      event.stopPropagation();
+      const action = actionBtn.dataset.action;
+
+      switch (action) {
+        case 'open-all':
+          await this.openGroupTabs(group);
+          break;
+        case 'open-window':
+          await this.openGroupInWindow(group);
+          break;
+        case 'ungroup':
+          await this.ungroupTiles(group.id);
+          break;
+      }
+    });
+
+    // Make group draggable
+    element.addEventListener('pointerdown', (event) => {
+      if (event.target.closest('.tab-canvas-group-title') ||
+          event.target.closest('[data-action]')) {
+        return;
+      }
+      this.startDrag(event, group.id);
+    });
+
+    element.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+      this.showGroupContextMenu(event, group);
+    });
+
+    return element;
+  }
+
+  createGroupPreview(group) {
+    const maxPreviews = 4;
+    const tiles = group.tiles?.slice(0, maxPreviews) || [];
+
+    if (tiles.length === 0) {
+      return '<div class="group-preview-empty">Empty group</div>';
+    }
+
+    return tiles.map(tile => {
+      const iconUrl = tile.faviconUrl || '';
+      const placeholder = this.getTilePlaceholder(tile);
+      return `
+        <div class="group-preview-tile" title="${this.escapeHtml(tile.title)}">
+          ${iconUrl ?
+            `<img src="${iconUrl}" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">` :
+            ''}
+          <span class="group-preview-placeholder" ${iconUrl ? 'style="display: none"' : ''}>${placeholder}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async openGroupTabs(group) {
+    if (!group.tiles || group.tiles.length === 0) return;
+
+    for (const tile of group.tiles) {
+      if (tile.url) {
+        window.open(tile.url, '_blank', 'noopener');
+      }
+    }
+  }
+
+  async openGroupInWindow(group) {
+    if (!group.tiles || group.tiles.length === 0) return;
+
+    const urls = group.tiles.filter(t => t.url).map(t => t.url);
+    if (urls.length === 0) return;
+
+    try {
+      if (chrome?.windows?.create) {
+        await chrome.windows.create({
+          url: urls,
+          focused: true
+        });
+      } else {
+        // Fallback to opening tabs
+        urls.forEach(url => window.open(url, '_blank', 'noopener'));
+      }
+    } catch (error) {
+      console.error('Failed to open group in window', error);
+      urls.forEach(url => window.open(url, '_blank', 'noopener'));
+    }
+  }
+
+  async ungroupTiles(groupId) {
+    const groupIndex = this.tiles.findIndex(t => t.id === groupId);
+    if (groupIndex === -1) return;
+
+    const group = this.tiles[groupIndex];
+    if (group.type !== 'group' || !group.tiles) return;
+
+    // Extract tiles from the group
+    const tiles = group.tiles.map((tile, index) => ({
+      ...tile,
+      x: group.x + (index % 2) * 70,
+      y: group.y + Math.floor(index / 2) * 70,
+      z: this.nextZ++
+    }));
+
+    // Remove group and add individual tiles
+    this.tiles.splice(groupIndex, 1);
+    this.tiles.push(...tiles);
+
+    await this.persistState();
+    this.render();
+  }
+
+  showGroupContextMenu(event, group) {
+    this.closeContextMenu();
+
+    const menu = document.createElement('div');
+    menu.className = 'tab-canvas-context-menu';
+    menu.style.left = `${event.clientX}px`;
+    menu.style.top = `${event.clientY}px`;
+
+    menu.innerHTML = `
+      <button data-action="open-all">Open all tabs</button>
+      <button data-action="open-window">Open all in window</button>
+      <hr>
+      <button data-action="rename">Rename group</button>
+      <button data-action="ungroup">Ungroup</button>
+      <button data-action="remove" class="danger">Remove group</button>
+    `;
+
+    menu.addEventListener('click', async (clickEvent) => {
+      const action = clickEvent.target.dataset.action;
+      switch (action) {
+        case 'open-all':
+          await this.openGroupTabs(group);
+          break;
+        case 'open-window':
+          await this.openGroupInWindow(group);
+          break;
+        case 'rename':
+          const titleEl = this.tileElements.get(group.id)?.querySelector('.tab-canvas-group-title');
+          if (titleEl) {
+            titleEl.focus();
+            titleEl.select();
+          }
+          break;
+        case 'ungroup':
+          await this.ungroupTiles(group.id);
+          break;
+        case 'remove':
+          await this.removeTile(group.id);
+          break;
+      }
+      this.closeContextMenu();
+    });
+
+    document.body.appendChild(menu);
+    this.contextMenu = menu;
+
+    const closeHandler = (e) => {
+      if (!menu.contains(e.target)) {
+        this.closeContextMenu();
+        document.removeEventListener('mousedown', closeHandler, true);
+        document.removeEventListener('contextmenu', closeHandler, true);
+      }
+    };
+
+    document.addEventListener('mousedown', closeHandler, true);
+    document.addEventListener('contextmenu', closeHandler, true);
+  }
+
   applyTileTheme(element, tile) {
     const accent = this.normalizeColor(tile.color);
     element.style.setProperty('--tile-accent', accent);
@@ -490,7 +730,7 @@ export class TabCanvasManager {
     }
   }
 
-  onPointerUp() {
+  async onPointerUp() {
     const endedDrag = this.dragState;
     const endedResize = this.resizeState;
 
@@ -504,8 +744,25 @@ export class TabCanvasManager {
       }, 150);
     };
 
+    // Check for group creation on drag end
     if (endedDrag?.moved) {
       suppressClick(endedDrag.tileId);
+
+      // Check if dropped on another tile
+      const draggedTile = this.getTile(endedDrag.tileId);
+      if (draggedTile) {
+        for (const tile of this.tiles) {
+          if (tile.id !== draggedTile.id && this.canDropOnTile(draggedTile, tile)) {
+            // Found a tile to merge with
+            await this.mergeIntoGroup(draggedTile.id, tile.id);
+            this.dragState = null;
+            this.resizeState = null;
+            window.removeEventListener('pointermove', this.boundOnPointerMove);
+            window.removeEventListener('pointerup', this.boundOnPointerUp);
+            return;
+          }
+        }
+      }
     }
 
     if (endedResize) {
@@ -581,6 +838,147 @@ export class TabCanvasManager {
     }
 
     this.persistTiles();
+  }
+
+  createGroup(tiles = []) {
+    // Calculate the center position of the tiles
+    let centerX = 0, centerY = 0;
+    tiles.forEach(tile => {
+      centerX += tile.x + tile.width / 2;
+      centerY += tile.y + tile.height / 2;
+    });
+
+    if (tiles.length > 0) {
+      centerX /= tiles.length;
+      centerY /= tiles.length;
+    }
+
+    const group = this.createTileData({
+      type: 'group',
+      title: `Group ${this.tiles.filter(t => t.type === 'group').length + 1}`,
+      color: tiles[0]?.color || DEFAULT_COLORS[0]
+    });
+
+    group.x = Math.round(centerX - group.width / 2);
+    group.y = Math.round(centerY - group.height / 2);
+    group.tiles = tiles.map(tile => ({ ...tile }));
+
+    return group;
+  }
+
+  canDropOnTile(draggedTile, targetTile) {
+    if (!draggedTile || !targetTile) return false;
+    if (draggedTile.id === targetTile.id) return false;
+
+    // Check if tiles overlap
+    const dragBounds = {
+      left: draggedTile.x,
+      top: draggedTile.y,
+      right: draggedTile.x + draggedTile.width,
+      bottom: draggedTile.y + draggedTile.height
+    };
+
+    const targetBounds = {
+      left: targetTile.x,
+      top: targetTile.y,
+      right: targetTile.x + targetTile.width,
+      bottom: targetTile.y + targetTile.height
+    };
+
+    const overlaps = !(
+      dragBounds.right < targetBounds.left ||
+      dragBounds.left > targetBounds.right ||
+      dragBounds.bottom < targetBounds.top ||
+      dragBounds.top > targetBounds.bottom
+    );
+
+    return overlaps;
+  }
+
+  async mergeIntoGroup(draggedTileId, targetTileId) {
+    const draggedTile = this.getTile(draggedTileId);
+    const targetTile = this.getTile(targetTileId);
+
+    if (!draggedTile || !targetTile) return;
+
+    // If target is a group, add to it
+    if (targetTile.type === 'group') {
+      targetTile.tiles.push({ ...draggedTile });
+      // Remove the dragged tile from main tiles
+      this.tiles = this.tiles.filter(t => t.id !== draggedTileId);
+    }
+    // If both are tiles, create a new group
+    else if (draggedTile.type === 'tile' && targetTile.type === 'tile') {
+      const group = this.createGroup([draggedTile, targetTile]);
+
+      // Remove both tiles and add the group
+      this.tiles = this.tiles.filter(t => t.id !== draggedTileId && t.id !== targetTileId);
+      this.tiles.push(group);
+    }
+
+    await this.persistState();
+    this.render();
+  }
+
+  async autoArrangeTiles() {
+    if (this.tiles.length === 0) return;
+
+    const bounds = this.inner?.getBoundingClientRect();
+    if (!bounds) return;
+
+    // Calculate grid dimensions
+    const padding = 24;
+    const gap = 16;
+    const tileWidth = DEFAULT_TILE_WIDTH;
+    const tileHeight = DEFAULT_TILE_HEIGHT;
+
+    // Calculate how many tiles can fit in a row
+    const availableWidth = bounds.width - (padding * 2);
+    const tilesPerRow = Math.floor((availableWidth + gap) / (tileWidth + gap));
+    const actualTilesPerRow = Math.max(1, Math.min(tilesPerRow, this.tiles.length));
+
+    // Calculate rows needed
+    const rows = Math.ceil(this.tiles.length / actualTilesPerRow);
+
+    // Center the grid
+    const totalGridWidth = (actualTilesPerRow * tileWidth) + ((actualTilesPerRow - 1) * gap);
+    const startX = Math.max(padding, (bounds.width - totalGridWidth) / 2);
+    const startY = padding;
+
+    // Add animation class to all tiles
+    this.tileElements.forEach(element => {
+      element.classList.add('auto-arranging');
+    });
+
+    // Arrange tiles in a grid
+    this.tiles.forEach((tile, index) => {
+      const row = Math.floor(index / actualTilesPerRow);
+      const col = index % actualTilesPerRow;
+
+      tile.x = Math.round(startX + (col * (tileWidth + gap)));
+      tile.y = Math.round(startY + (row * (tileHeight + gap)));
+
+      // Reset size to default
+      tile.width = tileWidth;
+      tile.height = tileHeight;
+
+      const element = this.tileElements.get(tile.id);
+      if (element) {
+        element.style.left = `${tile.x}px`;
+        element.style.top = `${tile.y}px`;
+        element.style.width = `${tile.width}px`;
+        element.style.height = `${tile.height}px`;
+      }
+    });
+
+    // Remove animation class after animation completes
+    setTimeout(() => {
+      this.tileElements.forEach(element => {
+        element.classList.remove('auto-arranging');
+      });
+    }, 600);
+
+    await this.persistState();
   }
 
   async removeTile(tileId) {
@@ -864,7 +1262,7 @@ export class TabCanvasManager {
     await this.persistState();
   }
 
-  createTileData({ title, url, color }) {
+  createTileData({ title, url, color, type = 'tile' }) {
     const normalizedColor = this.normalizeColor(color);
     const bounds = this.inner?.getBoundingClientRect?.();
     const canvasWidth = bounds?.width ?? (this.container?.clientWidth ?? DEFAULT_TILE_WIDTH * 3);
@@ -873,33 +1271,51 @@ export class TabCanvasManager {
     const x = Math.max(16, Math.min(canvasWidth - DEFAULT_TILE_WIDTH - 16, canvasWidth / 2 - DEFAULT_TILE_WIDTH / 2));
     const y = Math.max(16, Math.min(canvasHeight - DEFAULT_TILE_HEIGHT - 16, canvasHeight / 2 - DEFAULT_TILE_HEIGHT / 2));
 
-    return {
+    const data = {
       id: this.generateId(),
+      type,
       title,
-      url,
       color: normalizedColor,
-      faviconUrl: this.buildFaviconUrl(url),
-      width: DEFAULT_TILE_WIDTH,
-      height: DEFAULT_TILE_HEIGHT,
+      width: type === 'group' ? DEFAULT_TILE_WIDTH * 1.5 : DEFAULT_TILE_WIDTH,
+      height: type === 'group' ? DEFAULT_TILE_HEIGHT * 1.5 : DEFAULT_TILE_HEIGHT,
       x: Math.round(x),
       y: Math.round(y),
       z: this.nextZ++
     };
+
+    if (type === 'group') {
+      data.tiles = [];
+      data.isExpanded = true;
+    } else {
+      data.url = url;
+      data.faviconUrl = this.buildFaviconUrl(url);
+    }
+
+    return data;
   }
 
   hydrateTile(tile) {
-    return {
+    const base = {
       id: tile.id || this.generateId(),
-      title: tile.title || this.extractHostname(tile.url || ''),
-      url: tile.url || '',
+      type: tile.type || 'tile',
+      title: tile.title || (tile.type === 'group' ? 'Group' : this.extractHostname(tile.url || '')),
       color: this.normalizeColor(tile?.color),
-      faviconUrl: tile.faviconUrl || this.buildFaviconUrl(tile.url || ''),
-      width: (typeof tile.width === 'number' && tile.width <= 200 ? Math.max(56, tile.width) : DEFAULT_TILE_WIDTH),
-      height: (typeof tile.height === 'number' && tile.height <= 200 ? Math.max(56, tile.height) : DEFAULT_TILE_HEIGHT),
+      width: (typeof tile.width === 'number' && tile.width <= 300 ? Math.max(56, tile.width) : DEFAULT_TILE_WIDTH),
+      height: (typeof tile.height === 'number' && tile.height <= 300 ? Math.max(56, tile.height) : DEFAULT_TILE_HEIGHT),
       x: typeof tile.x === 'number' ? tile.x : 32,
       y: typeof tile.y === 'number' ? tile.y : 32,
       z: tile.z || this.nextZ++
     };
+
+    if (tile.type === 'group') {
+      base.tiles = (tile.tiles || []).map(subTile => this.hydrateTile(subTile));
+      base.isExpanded = tile.isExpanded !== false;
+    } else {
+      base.url = tile.url || '';
+      base.faviconUrl = tile.faviconUrl || this.buildFaviconUrl(tile.url || '');
+    }
+
+    return base;
   }
 
   getTile(tileId) {

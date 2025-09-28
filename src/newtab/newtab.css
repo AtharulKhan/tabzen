@@ -265,6 +265,41 @@ body {
   box-shadow: 0 20px 45px rgba(59, 130, 246, 0.4);
 }
 
+.tab-canvas-arrange-btn {
+  position: absolute;
+  bottom: 32px;
+  right: 96px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: var(--foreground);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+  cursor: pointer;
+  transition: transform var(--transition-base), box-shadow var(--transition-base), background var(--transition-base);
+  z-index: 10;
+}
+
+.tab-canvas-arrange-btn:hover {
+  transform: translateY(-2px);
+  background: rgba(148, 163, 184, 0.25);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.15);
+}
+
+[data-theme="dark"] .tab-canvas-arrange-btn {
+  background: rgba(71, 85, 105, 0.35);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+[data-theme="dark"] .tab-canvas-arrange-btn:hover {
+  background: rgba(71, 85, 105, 0.5);
+}
+
 .tab-canvas-empty {
   position: absolute;
   inset: 0;
@@ -333,7 +368,150 @@ body {
   color: var(--tile-text-color, var(--foreground));
   cursor: grab;
   user-select: none;
-  transition: transform var(--transition-base);
+  transition: transform var(--transition-base), left 0.4s cubic-bezier(0.4, 0, 0.2, 1), top 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tab-canvas-tile.auto-arranging {
+  transition: left 0.6s cubic-bezier(0.4, 0, 0.2, 1), top 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform var(--transition-base);
+}
+
+/* Tab Canvas Groups */
+.tab-canvas-group {
+  position: absolute;
+  background: var(--tile-surface, rgba(255, 255, 255, 0.95));
+  border: 2px solid var(--tile-border-color, rgba(148, 163, 184, 0.3));
+  border-radius: 20px;
+  padding: 12px;
+  cursor: move;
+  user-select: none;
+  transition: transform var(--transition-base), box-shadow var(--transition-base), left 0.4s cubic-bezier(0.4, 0, 0.2, 1), top 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 16px var(--tile-shadow-color, rgba(15, 23, 42, 0.1));
+}
+
+.tab-canvas-group:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px var(--tile-shadow-hover, rgba(15, 23, 42, 0.15));
+}
+
+.tab-canvas-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  gap: 8px;
+}
+
+.tab-canvas-group-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tile-text-color, var(--foreground));
+  padding: 2px 6px;
+  border-radius: 6px;
+  outline: none;
+  transition: background var(--transition-base);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-canvas-group-title:hover {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.tab-canvas-group-title:focus {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.tab-canvas-group-count {
+  font-size: 11px;
+  color: var(--tile-text-muted, var(--muted));
+  background: rgba(148, 163, 184, 0.1);
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.tab-canvas-group-preview {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+  min-height: 60px;
+}
+
+.group-preview-tile {
+  width: 100%;
+  aspect-ratio: 1;
+  background: rgba(148, 163, 184, 0.08);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.group-preview-tile img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.group-preview-placeholder {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tile-text-muted, var(--muted));
+  text-transform: uppercase;
+}
+
+.group-preview-empty {
+  grid-column: span 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 12px;
+  min-height: 60px;
+}
+
+.tab-canvas-group-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.group-action-btn {
+  flex: 1;
+  padding: 6px;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 8px;
+  color: var(--tile-text-color, var(--foreground));
+  cursor: pointer;
+  transition: all var(--transition-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.group-action-btn:hover {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.3);
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .tab-canvas-group {
+  background: var(--tile-surface, rgba(30, 41, 59, 0.95));
+  border-color: var(--tile-border-color, rgba(148, 163, 184, 0.25));
+}
+
+[data-theme="dark"] .group-action-btn {
+  background: rgba(71, 85, 105, 0.25);
+  border-color: rgba(148, 163, 184, 0.15);
+}
+
+[data-theme="dark"] .group-action-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
 }
 
 .tab-canvas-tile:active {

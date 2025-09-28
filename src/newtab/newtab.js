@@ -117,6 +117,7 @@ class TabZenApp {
       tabCanvasInner: document.getElementById('tabCanvasInner'),
       tabCanvasEmpty: document.getElementById('tabCanvasEmpty'),
       tabCanvasAddBtn: document.getElementById('tabCanvasAddBtn'),
+      tabCanvasArrangeBtn: document.getElementById('tabCanvasArrangeBtn'),
       tabCanvasResizeHandle: document.getElementById('tabCanvasResizeHandle'),
       tabCanvasEmptyAdd: document.getElementById('tabCanvasEmptyAdd'),
       tabCanvasTileModal: document.getElementById('tabCanvasTileModal'),
@@ -1487,6 +1488,7 @@ class TabZenApp {
       inner: this.elements.tabCanvasInner,
       emptyState: this.elements.tabCanvasEmpty,
       addButton: this.elements.tabCanvasAddBtn,
+      arrangeButton: this.elements.tabCanvasArrangeBtn,
       resizeHandle: this.elements.tabCanvasResizeHandle,
       modal: {
         root: this.elements.tabCanvasTileModal,
