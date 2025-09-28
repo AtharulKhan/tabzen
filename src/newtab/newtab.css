@@ -378,41 +378,47 @@ body {
 /* Tab Canvas Groups */
 .tab-canvas-group {
   position: absolute;
-  background: var(--tile-surface, rgba(255, 255, 255, 0.95));
-  border: 2px solid var(--tile-border-color, rgba(148, 163, 184, 0.3));
-  border-radius: 20px;
-  padding: 12px;
-  cursor: move;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  padding: 10px;
+  cursor: pointer;
   user-select: none;
   transition: transform var(--transition-base), box-shadow var(--transition-base), left 0.4s cubic-bezier(0.4, 0, 0.2, 1), top 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 16px var(--tile-shadow-color, rgba(15, 23, 42, 0.1));
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08), 0 1px 4px rgba(15, 23, 42, 0.04);
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .tab-canvas-group:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px var(--tile-shadow-hover, rgba(15, 23, 42, 0.15));
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.15), 0 4px 12px rgba(15, 23, 42, 0.1);
 }
 
 .tab-canvas-group-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
-  gap: 8px;
+  gap: 6px;
+  padding: 4px;
 }
 
 .tab-canvas-group-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--tile-text-color, var(--foreground));
-  padding: 2px 6px;
-  border-radius: 6px;
+  padding: 2px 4px;
+  border-radius: 4px;
   outline: none;
   transition: background var(--transition-base);
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tab-canvas-group-title:hover {
@@ -436,14 +442,17 @@ body {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 6px;
-  margin-bottom: 10px;
-  min-height: 60px;
+  padding: 6px;
+  background: rgba(241, 245, 249, 0.4);
+  border-radius: 10px;
+  min-height: 64px;
 }
 
 .group-preview-tile {
   width: 100%;
   aspect-ratio: 1;
-  background: rgba(148, 163, 184, 0.08);
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.12);
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -477,14 +486,15 @@ body {
 
 .tab-canvas-group-actions {
   display: flex;
-  gap: 4px;
+  gap: 3px;
+  padding: 0 2px;
 }
 
 .group-action-btn {
   flex: 1;
   padding: 6px;
-  background: rgba(148, 163, 184, 0.08);
-  border: 1px solid rgba(148, 163, 184, 0.15);
+  background: rgba(148, 163, 184, 0.05);
+  border: 1px solid rgba(148, 163, 184, 0.1);
   border-radius: 8px;
   color: var(--tile-text-color, var(--foreground));
   cursor: pointer;
@@ -492,6 +502,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 28px;
 }
 
 .group-action-btn:hover {
@@ -501,8 +512,17 @@ body {
 }
 
 [data-theme="dark"] .tab-canvas-group {
-  background: var(--tile-surface, rgba(30, 41, 59, 0.95));
-  border-color: var(--tile-border-color, rgba(148, 163, 184, 0.25));
+  background: rgba(30, 41, 59, 0.98);
+  border-color: rgba(71, 85, 105, 0.35);
+}
+
+[data-theme="dark"] .tab-canvas-group-preview {
+  background: rgba(15, 23, 42, 0.5);
+}
+
+[data-theme="dark"] .group-preview-tile {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(71, 85, 105, 0.25);
 }
 
 [data-theme="dark"] .group-action-btn {
@@ -512,6 +532,165 @@ body {
 
 [data-theme="dark"] .group-action-btn:hover {
   background: rgba(59, 130, 246, 0.2);
+}
+
+/* Group Detail Modal */
+.group-detail-modal {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  animation: modalFadeIn 0.3s ease;
+}
+
+.group-detail-modal.active {
+  display: block;
+}
+
+.group-detail-content {
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 20px;
+  width: 480px;
+  max-width: 90vw;
+  max-height: 70vh;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+
+.group-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  background: rgba(248, 250, 252, 0.5);
+}
+
+.group-detail-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.group-detail-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.group-detail-tiles {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.group-detail-tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(248, 250, 252, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.group-detail-tile:hover {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.2);
+  transform: translateX(2px);
+}
+
+.group-detail-tile-favicon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.group-detail-tile-favicon img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.group-detail-tile-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.group-detail-tile-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.group-detail-tile-url {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.group-detail-tile-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity var(--transition-base);
+}
+
+.group-detail-tile:hover .group-detail-tile-actions {
+  opacity: 1;
+}
+
+[data-theme="dark"] .group-detail-content {
+  background: rgba(30, 41, 59, 0.98);
+  border-color: rgba(71, 85, 105, 0.35);
+}
+
+[data-theme="dark"] .group-detail-header {
+  background: rgba(15, 23, 42, 0.5);
+  border-color: rgba(71, 85, 105, 0.25);
+}
+
+[data-theme="dark"] .group-detail-tile {
+  background: rgba(30, 41, 59, 0.5);
+  border-color: rgba(71, 85, 105, 0.2);
+}
+
+[data-theme="dark"] .group-detail-tile:hover {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 .tab-canvas-tile:active {

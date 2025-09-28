@@ -331,7 +331,7 @@ export class TabCanvasManager {
 
     element.innerHTML = `
       <div class="tab-canvas-group-header">
-        <div class="tab-canvas-group-title" contenteditable="true" spellcheck="false">${escapedTitle}</div>
+        <div class="tab-canvas-group-title">${escapedTitle}</div>
         <span class="tab-canvas-group-count">${tileCount} tab${tileCount !== 1 ? 's' : ''}</span>
       </div>
       <div class="tab-canvas-group-preview">
@@ -339,18 +339,18 @@ export class TabCanvasManager {
       </div>
       <div class="tab-canvas-group-actions">
         <button class="group-action-btn" data-action="open-all" title="Open all tabs">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/>
           </svg>
         </button>
         <button class="group-action-btn" data-action="open-window" title="Open all in new window">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
             <line x1="9" y1="3" x2="9" y2="21"/>
           </svg>
         </button>
         <button class="group-action-btn" data-action="ungroup" title="Ungroup">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="8" y1="6" x2="21" y2="6"/>
             <line x1="8" y1="12" x2="21" y2="12"/>
             <line x1="8" y1="18" x2="21" y2="18"/>
@@ -362,39 +362,30 @@ export class TabCanvasManager {
       </div>
     `;
 
-    // Handle group title editing
-    const titleEl = element.querySelector('.tab-canvas-group-title');
-    titleEl?.addEventListener('blur', async () => {
-      group.title = titleEl.textContent.trim() || 'Group';
-      await this.persistState();
-    });
-
-    titleEl?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        titleEl.blur();
-      }
-    });
-
-    // Handle group actions
+    // Handle group click to open floating window
     element.addEventListener('click', async (event) => {
+      // Check if clicking on an action button
       const actionBtn = event.target.closest('[data-action]');
-      if (!actionBtn) return;
+      if (actionBtn) {
+        event.stopPropagation();
+        const action = actionBtn.dataset.action;
 
-      event.stopPropagation();
-      const action = actionBtn.dataset.action;
-
-      switch (action) {
-        case 'open-all':
-          await this.openGroupTabs(group);
-          break;
-        case 'open-window':
-          await this.openGroupInWindow(group);
-          break;
-        case 'ungroup':
-          await this.ungroupTiles(group.id);
-          break;
+        switch (action) {
+          case 'open-all':
+            await this.openGroupTabs(group);
+            break;
+          case 'open-window':
+            await this.openGroupInWindow(group);
+            break;
+          case 'ungroup':
+            await this.ungroupTiles(group.id);
+            break;
+        }
+        return;
       }
+
+      // Otherwise, show the group detail modal
+      this.showGroupDetailModal(group);
     });
 
     // Make group draggable
@@ -489,6 +480,111 @@ export class TabCanvasManager {
 
     await this.persistState();
     this.render();
+  }
+
+  showGroupDetailModal(group) {
+    const modal = document.getElementById('groupDetailModal');
+    const titleEl = document.getElementById('groupDetailTitle');
+    const tilesContainer = document.getElementById('groupDetailTiles');
+
+    if (!modal || !titleEl || !tilesContainer) return;
+
+    // Set title
+    titleEl.textContent = group.title || 'Group';
+
+    // Render tiles
+    tilesContainer.innerHTML = '';
+    if (group.tiles && group.tiles.length > 0) {
+      group.tiles.forEach(tile => {
+        const tileEl = document.createElement('div');
+        tileEl.className = 'group-detail-tile';
+
+        const faviconUrl = tile.faviconUrl || '';
+        const placeholder = this.getTilePlaceholder(tile);
+
+        tileEl.innerHTML = `
+          <div class="group-detail-tile-favicon">
+            ${faviconUrl ?
+              `<img src="${faviconUrl}" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">` :
+              ''}
+            <span class="group-preview-placeholder" ${faviconUrl ? 'style="display: none"' : ''}>${placeholder}</span>
+          </div>
+          <div class="group-detail-tile-info">
+            <div class="group-detail-tile-title">${this.escapeHtml(tile.title)}</div>
+            <div class="group-detail-tile-url">${this.escapeHtml(this.getDisplayUrl(tile.url))}</div>
+          </div>
+          <div class="group-detail-tile-actions">
+            <button class="icon-button" data-url="${tile.url}" title="Open">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/>
+                <line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+            </button>
+          </div>
+        `;
+
+        // Add click handler to open the tile
+        tileEl.addEventListener('click', (e) => {
+          if (!e.target.closest('.icon-button')) {
+            window.open(tile.url, '_blank', 'noopener');
+          }
+        });
+
+        // Add click handler for the open button
+        const openBtn = tileEl.querySelector('[data-url]');
+        if (openBtn) {
+          openBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.open(tile.url, '_blank', 'noopener');
+          });
+        }
+
+        tilesContainer.appendChild(tileEl);
+      });
+    } else {
+      tilesContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--muted);">No tabs in this group</div>';
+    }
+
+    // Set up modal action buttons
+    const openAllBtn = document.getElementById('openAllGroupTabs');
+    const openWindowBtn = document.getElementById('openGroupWindow');
+    const closeBtn = document.getElementById('closeGroupModal');
+
+    // Remove old listeners by cloning
+    const newOpenAllBtn = openAllBtn?.cloneNode(true);
+    const newOpenWindowBtn = openWindowBtn?.cloneNode(true);
+    const newCloseBtn = closeBtn?.cloneNode(true);
+
+    openAllBtn?.parentNode?.replaceChild(newOpenAllBtn, openAllBtn);
+    openWindowBtn?.parentNode?.replaceChild(newOpenWindowBtn, openWindowBtn);
+    closeBtn?.parentNode?.replaceChild(newCloseBtn, closeBtn);
+
+    // Add new listeners
+    newOpenAllBtn?.addEventListener('click', async () => {
+      await this.openGroupTabs(group);
+    });
+
+    newOpenWindowBtn?.addEventListener('click', async () => {
+      await this.openGroupInWindow(group);
+      modal.classList.remove('active');
+    });
+
+    newCloseBtn?.addEventListener('click', () => {
+      modal.classList.remove('active');
+    });
+
+    // Close on click outside
+    const closeOnOutside = (e) => {
+      if (e.target === modal) {
+        modal.classList.remove('active');
+        modal.removeEventListener('click', closeOnOutside);
+      }
+    };
+    modal.addEventListener('click', closeOnOutside);
+
+    // Show modal
+    modal.classList.add('active');
   }
 
   showGroupContextMenu(event, group) {
@@ -1276,8 +1372,8 @@ export class TabCanvasManager {
       type,
       title,
       color: normalizedColor,
-      width: type === 'group' ? DEFAULT_TILE_WIDTH * 1.5 : DEFAULT_TILE_WIDTH,
-      height: type === 'group' ? DEFAULT_TILE_HEIGHT * 1.5 : DEFAULT_TILE_HEIGHT,
+      width: type === 'group' ? 140 : DEFAULT_TILE_WIDTH,
+      height: type === 'group' ? 160 : DEFAULT_TILE_HEIGHT,
       x: Math.round(x),
       y: Math.round(y),
       z: this.nextZ++
@@ -1295,13 +1391,17 @@ export class TabCanvasManager {
   }
 
   hydrateTile(tile) {
+    const isGroup = tile.type === 'group';
+    const defaultWidth = isGroup ? 140 : DEFAULT_TILE_WIDTH;
+    const defaultHeight = isGroup ? 160 : DEFAULT_TILE_HEIGHT;
+
     const base = {
       id: tile.id || this.generateId(),
       type: tile.type || 'tile',
-      title: tile.title || (tile.type === 'group' ? 'Group' : this.extractHostname(tile.url || '')),
+      title: tile.title || (isGroup ? 'Group' : this.extractHostname(tile.url || '')),
       color: this.normalizeColor(tile?.color),
-      width: (typeof tile.width === 'number' && tile.width <= 300 ? Math.max(56, tile.width) : DEFAULT_TILE_WIDTH),
-      height: (typeof tile.height === 'number' && tile.height <= 300 ? Math.max(56, tile.height) : DEFAULT_TILE_HEIGHT),
+      width: (typeof tile.width === 'number' && tile.width <= 400 ? Math.max(56, tile.width) : defaultWidth),
+      height: (typeof tile.height === 'number' && tile.height <= 400 ? Math.max(56, tile.height) : defaultHeight),
       x: typeof tile.x === 'number' ? tile.x : 32,
       y: typeof tile.y === 'number' ? tile.y : 32,
       z: tile.z || this.nextZ++

@@ -12,29 +12,74 @@ export class BookmarksManager {
    */
   async getAllBookmarks() {
     const now = Date.now();
-    
+
     // Return cached bookmarks if still valid
     if (this.bookmarksCache && (now - this.lastCacheTime) < this.cacheTimeout) {
       return this.bookmarksCache;
     }
 
     try {
+      // Check if we have bookmarks permission
+      if (!chrome?.bookmarks) {
+        console.log('Bookmarks API not available - requesting permission');
+        // Request bookmarks permission
+        const granted = await this.requestBookmarksPermission();
+        if (!granted) {
+          console.log('Bookmarks permission not granted');
+          return [];
+        }
+      }
+
       // Get the bookmark tree from Chrome API
-      const bookmarkTree = await new Promise((resolve) => {
-        chrome.bookmarks.getTree(resolve);
+      const bookmarkTree = await new Promise((resolve, reject) => {
+        if (!chrome?.bookmarks?.getTree) {
+          reject(new Error('Bookmarks API not available'));
+          return;
+        }
+        chrome.bookmarks.getTree((tree) => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve(tree);
+          }
+        });
       });
 
       // Flatten the bookmark tree into a searchable array
       const flatBookmarks = this.flattenBookmarkTree(bookmarkTree);
-      
+
       // Cache the results
       this.bookmarksCache = flatBookmarks;
       this.lastCacheTime = now;
-      
+
       return flatBookmarks;
     } catch (error) {
       console.error('Error fetching bookmarks:', error);
       return [];
+    }
+  }
+
+  /**
+   * Request bookmarks permission
+   */
+  async requestBookmarksPermission() {
+    try {
+      if (!chrome?.permissions?.request) {
+        console.log('Permissions API not available');
+        return false;
+      }
+
+      return await new Promise((resolve) => {
+        chrome.permissions.request(
+          { permissions: ['bookmarks'] },
+          (granted) => {
+            resolve(granted);
+          }
+        );
+      });
+    } catch (error) {
+      console.error('Error requesting bookmarks permission:', error);
+      return false;
     }
   }
 

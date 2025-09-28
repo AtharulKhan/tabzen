@@ -868,6 +868,21 @@ class TabZenApp {
   }
   
   displaySearchResults(results, query, type = 'bookmarks') {
+    // Check if this is a bookmarks search with no results due to missing permissions
+    if (results.length === 0 && type === 'bookmarks' && !chrome?.bookmarks) {
+      this.elements.searchResults.innerHTML = `
+        <div class="search-result-item" style="cursor: pointer" onclick="chrome.permissions.request({permissions: ['bookmarks']}, () => location.reload())">
+          <div class="search-result-icon">🔐</div>
+          <div class="search-result-content">
+            <div class="search-result-title">Enable Bookmarks Search</div>
+            <div class="search-result-url">Click to grant permission to search your bookmarks</div>
+          </div>
+        </div>
+      `;
+      this.elements.searchResults.classList.add('active');
+      return;
+    }
+
     if (results.length === 0) {
       this.elements.searchResults.innerHTML = `
         <div class="search-no-results">
