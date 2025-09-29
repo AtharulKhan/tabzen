@@ -371,6 +371,43 @@ body {
   transition: transform var(--transition-base), left 0.4s cubic-bezier(0.4, 0, 0.2, 1), top 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.tab-canvas-tile-label {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
+  pointer-events: none;
+  opacity: 0.7;
+  transition: opacity var(--transition-base);
+}
+
+/* Default position - top */
+.tab-canvas-tile-label {
+  top: -20px;
+}
+
+/* Label at the top */
+.tab-canvas-tile.label-top .tab-canvas-tile-label {
+  top: -20px;
+  bottom: auto;
+}
+
+/* Label at the bottom */
+.tab-canvas-tile.label-bottom .tab-canvas-tile-label {
+  top: auto;
+  bottom: -20px;
+}
+
+.tab-canvas-tile:hover .tab-canvas-tile-label {
+  opacity: 0.9;
+}
+
 .tab-canvas-tile.auto-arranging {
   transition: left 0.6s cubic-bezier(0.4, 0, 0.2, 1), top 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform var(--transition-base);
 }

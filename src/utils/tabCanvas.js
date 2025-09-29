@@ -187,11 +187,13 @@ export class TabCanvasManager {
 
     this.toggleEmptyState(this.tiles.length === 0);
 
-    for (const tile of this.tiles) {
+    this.tiles.forEach((tile, index) => {
       const element = this.createTileElement(tile);
+      // Default alternating pattern: even index = top, odd index = bottom
+      element.classList.add(index % 2 === 0 ? 'label-top' : 'label-bottom');
       this.inner.appendChild(element);
       this.tileElements.set(tile.id, element);
-    }
+    });
   }
 
   toggleEmptyState(isEmpty) {
@@ -222,6 +224,7 @@ export class TabCanvasManager {
     const placeholder = this.escapeHtml(this.getTilePlaceholder(tile));
 
     element.innerHTML = `
+      <div class="tab-canvas-tile-label" title="${escapedTitle}">${escapedTitle}</div>
       <div class="tab-canvas-tile-shell" aria-hidden="true">
         <div class="tab-canvas-tile-favicon">
           <span class="tab-canvas-tile-favicon-placeholder">${placeholder}</span>
@@ -1124,6 +1127,10 @@ export class TabCanvasManager {
         element.style.top = `${tile.y}px`;
         element.style.width = `${tile.width}px`;
         element.style.height = `${tile.height}px`;
+
+        // Alternate label position: even index = top, odd index = bottom
+        element.classList.remove('label-top', 'label-bottom');
+        element.classList.add(index % 2 === 0 ? 'label-top' : 'label-bottom');
       }
     });
 
