@@ -1,7 +1,7 @@
 // TabCanvasManager - Manages draggable tab tiles in a canvas layout
 
-const DEFAULT_TILE_WIDTH = 56;
-const DEFAULT_TILE_HEIGHT = 56;
+const DEFAULT_TILE_WIDTH = 36;
+const DEFAULT_TILE_HEIGHT = 36;
 const DEFAULT_COLORS = [
   '#EEF2FF',
   '#E0E7FF',
@@ -57,6 +57,8 @@ export class TabCanvasManager {
     this.resizeHandle = resizeHandle;
     this.faviconCache = new Map();
     this.cancelClickTileId = null;
+    this.longPressTimer = null;
+    this.longPressTileId = null;
 
     this.boundOnPointerMove = this.onPointerMove.bind(this);
     this.boundOnPointerUp = this.onPointerUp.bind(this);
@@ -253,7 +255,7 @@ export class TabCanvasManager {
             </div>
           </div>
           <div class="tab-canvas-tile-card-footer">
-            <span class="tab-canvas-tile-hint">Click to open &middot; Ctrl+Click for window &middot; Right-click for more</span>
+            <span class="tab-canvas-tile-hint">Click to open &middot; Hold 0.5s or Ctrl+Click for window</span>
             <div class="tab-canvas-tile-resize" aria-hidden="true"></div>
           </div>
         </div>
@@ -271,7 +273,12 @@ export class TabCanvasManager {
     }
 
     const shell = element.querySelector('.tab-canvas-tile-shell');
-    shell?.addEventListener('pointerdown', (event) => this.startDrag(event, tile.id));
+    shell?.addEventListener('pointerdown', (event) => {
+      // Start long-press timer for 2 seconds
+      this.startLongPress(event, tile);
+      // Also allow drag
+      this.startDrag(event, tile.id);
+    });
 
     const header = element.querySelector('.tab-canvas-tile-card-header');
     header?.addEventListener('pointerdown', (event) => this.startDrag(event, tile.id));
@@ -732,7 +739,7 @@ export class TabCanvasManager {
       if (chrome?.runtime?.id) {
         const chromeApiUrl = new URL(chrome.runtime.getURL("/_favicon/"));
         chromeApiUrl.searchParams.set("pageUrl", normalizedUrl);
-        chromeApiUrl.searchParams.set("size", "64");
+        chromeApiUrl.searchParams.set("size", "128");
         candidates.push(chromeApiUrl.toString());
       }
 
@@ -779,6 +786,54 @@ export class TabCanvasManager {
     };
     img.src = current;
   }
+  startLongPress(event, tile) {
+    // Clear any existing long-press timer
+    this.cancelLongPress();
+
+    // Don't start long-press if Ctrl/Cmd is already pressed
+    if (event.ctrlKey || event.metaKey) return;
+
+    this.longPressTileId = tile.id;
+    const element = this.tileElements.get(tile.id);
+
+    // Add visual feedback
+    if (element) {
+      element.classList.add('long-pressing');
+    }
+
+    // Start 0.5-second timer
+    this.longPressTimer = setTimeout(() => {
+      // Long-press completed - open in new window
+      this.openPopup(tile);
+
+      // Clean up
+      this.cancelLongPress();
+      this.cancelClickTileId = tile.id;
+
+      // Prevent the drag from continuing
+      if (this.dragState && this.dragState.tileId === tile.id) {
+        this.dragState = null;
+        window.removeEventListener('pointermove', this.boundOnPointerMove);
+        window.removeEventListener('pointerup', this.boundOnPointerUp);
+      }
+    }, 500);
+  }
+
+  cancelLongPress() {
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+
+    if (this.longPressTileId) {
+      const element = this.tileElements.get(this.longPressTileId);
+      if (element) {
+        element.classList.remove('long-pressing');
+      }
+      this.longPressTileId = null;
+    }
+  }
+
   startDrag(event, tileId) {
     const tile = this.getTile(tileId);
     if (!tile) return;
@@ -827,6 +882,9 @@ export class TabCanvasManager {
   }
 
   async onPointerUp() {
+    // Cancel long-press on pointer up
+    this.cancelLongPress();
+
     const endedDrag = this.dragState;
     const endedResize = this.resizeState;
 
@@ -886,6 +944,8 @@ export class TabCanvasManager {
     if (!this.dragState.moved) {
       if (Math.abs(x - tile.x) > 2 || Math.abs(y - tile.y) > 2) {
         this.dragState.moved = true;
+        // Cancel long-press if drag starts
+        this.cancelLongPress();
       }
     }
 

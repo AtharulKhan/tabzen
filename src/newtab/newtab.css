@@ -375,6 +375,28 @@ body {
   transition: left 0.6s cubic-bezier(0.4, 0, 0.2, 1), top 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform var(--transition-base);
 }
 
+/* Long press animation */
+.tab-canvas-tile.long-pressing .tab-canvas-tile-shell {
+  animation: longPressIndicator 0.5s ease-in-out;
+  transform-origin: center;
+}
+
+@keyframes longPressIndicator {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.95);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0.8;
+    box-shadow: 0 0 0 3px var(--tile-accent, rgba(99, 102, 241, 0.4));
+  }
+}
+
 /* Tab Canvas Groups */
 .tab-canvas-group {
   position: absolute;
@@ -712,9 +734,9 @@ body {
 
 .tab-canvas-tile-favicon,
 .tab-canvas-tile-card-favicon {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
   background: var(--tile-accent, rgba(148, 163, 184, 0.12));
   background-image: var(--favicon-image, none);
   background-position: center;
@@ -725,7 +747,7 @@ body {
   justify-content: center;
   color: var(--tile-text-color, var(--foreground));
   font-weight: 600;
-  font-size: 18px;
+  font-size: 12px;
   letter-spacing: 0.01em;
   box-shadow: none;
   overflow: hidden;
@@ -733,10 +755,10 @@ body {
 }
 
 .tab-canvas-tile-card-favicon {
-  width: 34px;
-  height: 34px;
-  border-radius: 12px;
-  font-size: 15px;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  font-size: 11px;
 }
 
 .tab-canvas-tile:hover .tab-canvas-tile-favicon,
@@ -747,7 +769,7 @@ body {
 .tab-canvas-tile-favicon-placeholder {
   pointer-events: none;
   opacity: 0.85;
-  font-size: 16px;
+  font-size: 11px;
 }
 
 .tab-canvas-tile-favicon.has-favicon .tab-canvas-tile-favicon-placeholder,
