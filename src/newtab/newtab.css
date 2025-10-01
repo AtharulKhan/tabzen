@@ -300,6 +300,180 @@ body {
   background: rgba(71, 85, 105, 0.5);
 }
 
+/* Tab Canvas Search */
+.tab-canvas-search-container {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 10;
+}
+
+.tab-canvas-search-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: var(--foreground);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+  cursor: pointer;
+  transition: transform var(--transition-base), box-shadow var(--transition-base), background var(--transition-base), opacity var(--transition-base);
+}
+
+.tab-canvas-search-btn:hover {
+  transform: translateY(-2px);
+  background: rgba(148, 163, 184, 0.25);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.15);
+}
+
+[data-theme="dark"] .tab-canvas-search-btn {
+  background: rgba(71, 85, 105, 0.35);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+[data-theme="dark"] .tab-canvas-search-btn:hover {
+  background: rgba(71, 85, 105, 0.5);
+}
+
+.tab-canvas-search-input-wrapper {
+  position: relative;
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tab-canvas-search-input-wrapper.active {
+  width: 240px;
+  opacity: 1;
+}
+
+.tab-canvas-search-input {
+  width: 100%;
+  height: 52px;
+  padding: 0 40px 0 18px;
+  font-size: 15px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 26px;
+  color: var(--foreground);
+  transition: all var(--transition-base);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+}
+
+[data-theme="dark"] .tab-canvas-search-input {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(148, 163, 184, 0.2);
+  color: var(--foreground);
+}
+
+.tab-canvas-search-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15), 0 12px 32px rgba(15, 23, 42, 0.15);
+}
+
+.tab-canvas-search-input::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.tab-canvas-search-clear {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all var(--transition-base);
+  pointer-events: none;
+}
+
+.tab-canvas-search-input:not(:placeholder-shown) ~ .tab-canvas-search-clear {
+  opacity: 0.6;
+  pointer-events: auto;
+}
+
+.tab-canvas-search-clear:hover {
+  opacity: 1 !important;
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--foreground);
+}
+
+.tab-canvas-search-container.searching .tab-canvas-search-btn {
+  opacity: 0.5;
+}
+
+/* Filtered tiles */
+.tab-canvas-tile.filtered-out,
+.tab-canvas-group.filtered-out {
+  opacity: 0.2;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.tab-canvas-tile.search-match,
+.tab-canvas-group.search-match {
+  animation: searchMatchPulse 0.4s ease-out;
+}
+
+@keyframes searchMatchPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.tab-canvas-tile.search-match .tab-canvas-tile-shell,
+.tab-canvas-group.search-match {
+  box-shadow: 0 0 0 2px var(--primary), 0 8px 24px rgba(59, 130, 246, 0.25);
+}
+
+/* Empty search state */
+.tab-canvas-search-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  display: none;
+}
+
+.tab-canvas-search-empty.visible {
+  display: block;
+}
+
+.tab-canvas-search-empty svg {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
 .tab-canvas-empty {
   position: absolute;
   inset: 0;

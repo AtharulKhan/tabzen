@@ -60,6 +60,11 @@ export class TabCanvasManager {
     this.longPressTimer = null;
     this.longPressTileId = null;
 
+    // Search state
+    this.searchQuery = '';
+    this.searchTimeout = null;
+    this.isSearching = false;
+
     this.boundOnPointerMove = this.onPointerMove.bind(this);
     this.boundOnPointerUp = this.onPointerUp.bind(this);
     this.boundOnCanvasResizeMove = this.onCanvasResizeMove.bind(this);
@@ -75,6 +80,7 @@ export class TabCanvasManager {
     }
     this.bindModal();
     this.bindCanvasResizeHandle();
+    this.bindSearchControls();
   }
 
   async loadSpace(spaceId) {
@@ -98,6 +104,10 @@ export class TabCanvasManager {
     } else {
       this.nextZ = Math.max(...this.tiles.map(tile => tile.z || 1)) + 1;
     }
+
+    // Clear search when switching spaces
+    this.clearSearch();
+
     this.render();
   }
 
@@ -178,6 +188,206 @@ export class TabCanvasManager {
 
     this.canvasResizeState = null;
     await this.persistState();
+  }
+
+  bindSearchControls() {
+    const searchBtn = document.getElementById('tabCanvasSearchBtn');
+    const searchInput = document.getElementById('tabCanvasSearchInput');
+    const searchClear = document.getElementById('tabCanvasSearchClear');
+    const searchContainer = document.getElementById('tabCanvasSearchContainer');
+    const searchInputWrapper = document.getElementById('tabCanvasSearchInputWrapper');
+
+    if (!searchBtn || !searchInput || !searchClear || !searchContainer || !searchInputWrapper) return;
+
+    // Toggle search input visibility
+    searchBtn.addEventListener('click', () => {
+      const isActive = searchInputWrapper.classList.contains('active');
+      if (isActive) {
+        this.closeSearch();
+      } else {
+        this.openSearch();
+      }
+    });
+
+    // Handle search input
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value;
+
+      // Debounce search
+      if (this.searchTimeout) {
+        clearTimeout(this.searchTimeout);
+      }
+
+      this.searchTimeout = setTimeout(() => {
+        this.performSearch(query);
+      }, 300);
+    });
+
+    // Clear search
+    searchClear.addEventListener('click', () => {
+      this.clearSearch();
+    });
+
+    // Handle Escape key to clear search
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.clearSearch();
+        this.closeSearch();
+      }
+    });
+
+    // Keyboard shortcut: Ctrl/Cmd + F to focus search
+    document.addEventListener('keydown', (e) => {
+      // Only activate if tab canvas is visible
+      if (!this.container?.classList.contains('visible')) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        this.openSearch();
+      }
+    });
+  }
+
+  openSearch() {
+    const searchInputWrapper = document.getElementById('tabCanvasSearchInputWrapper');
+    const searchInput = document.getElementById('tabCanvasSearchInput');
+
+    if (searchInputWrapper && searchInput) {
+      searchInputWrapper.classList.add('active');
+      setTimeout(() => searchInput.focus(), 300);
+    }
+  }
+
+  closeSearch() {
+    const searchInputWrapper = document.getElementById('tabCanvasSearchInputWrapper');
+
+    if (searchInputWrapper) {
+      searchInputWrapper.classList.remove('active');
+      this.clearSearch();
+    }
+  }
+
+  performSearch(query) {
+    this.searchQuery = query.toLowerCase().trim();
+    const searchContainer = document.getElementById('tabCanvasSearchContainer');
+
+    if (this.searchQuery === '') {
+      // Reset all tiles to visible
+      this.isSearching = false;
+      if (searchContainer) {
+        searchContainer.classList.remove('searching');
+      }
+      this.tileElements.forEach(element => {
+        element.classList.remove('filtered-out', 'search-match');
+      });
+      return;
+    }
+
+    this.isSearching = true;
+    if (searchContainer) {
+      searchContainer.classList.add('searching');
+    }
+
+    let matchCount = 0;
+
+    this.tiles.forEach(tile => {
+      const element = this.tileElements.get(tile.id);
+      if (!element) return;
+
+      const matches = this.tileMatchesSearch(tile, this.searchQuery);
+
+      if (matches) {
+        matchCount++;
+        element.classList.remove('filtered-out');
+        element.classList.add('search-match');
+
+        // Remove the animation class after it plays
+        setTimeout(() => {
+          element.classList.remove('search-match');
+        }, 400);
+      } else {
+        element.classList.add('filtered-out');
+        element.classList.remove('search-match');
+      }
+    });
+
+    // Show empty state if no matches
+    this.toggleEmptySearchState(matchCount === 0);
+  }
+
+  tileMatchesSearch(tile, query) {
+    if (!query) return true;
+
+    // For groups, check group title and all nested tiles
+    if (tile.type === 'group') {
+      // Check group title
+      if (tile.title?.toLowerCase().includes(query)) {
+        return true;
+      }
+
+      // Check nested tiles
+      if (tile.tiles && tile.tiles.length > 0) {
+        return tile.tiles.some(nestedTile =>
+          this.tileMatchesSearch(nestedTile, query)
+        );
+      }
+
+      return false;
+    }
+
+    // For regular tiles, check title and URL
+    const titleMatch = tile.title?.toLowerCase().includes(query);
+    const urlMatch = tile.url?.toLowerCase().includes(query);
+    const domainMatch = this.getDisplayUrl(tile.url)?.toLowerCase().includes(query);
+
+    return titleMatch || urlMatch || domainMatch;
+  }
+
+  toggleEmptySearchState(isEmpty) {
+    let emptySearchEl = this.inner?.querySelector('.tab-canvas-search-empty');
+
+    if (isEmpty && this.isSearching) {
+      if (!emptySearchEl) {
+        emptySearchEl = document.createElement('div');
+        emptySearchEl.className = 'tab-canvas-search-empty';
+        emptySearchEl.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+          </svg>
+          <div>No tabs match your search</div>
+        `;
+        this.inner?.appendChild(emptySearchEl);
+      }
+      emptySearchEl.classList.add('visible');
+    } else {
+      if (emptySearchEl) {
+        emptySearchEl.classList.remove('visible');
+      }
+    }
+  }
+
+  clearSearch() {
+    const searchInput = document.getElementById('tabCanvasSearchInput');
+
+    if (searchInput) {
+      searchInput.value = '';
+    }
+
+    this.searchQuery = '';
+    this.isSearching = false;
+
+    const searchContainer = document.getElementById('tabCanvasSearchContainer');
+    if (searchContainer) {
+      searchContainer.classList.remove('searching');
+    }
+
+    // Reset all tiles to visible
+    this.tileElements.forEach(element => {
+      element.classList.remove('filtered-out', 'search-match');
+    });
+
+    this.toggleEmptySearchState(false);
   }
   render() {
     if (!this.inner) return;
