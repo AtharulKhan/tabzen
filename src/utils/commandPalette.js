@@ -62,12 +62,8 @@ export class CommandPalette {
 
     registerKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
-            // Open command palette with Cmd/Ctrl + Shift + P
-            if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'P') {
-                e.preventDefault();
-                this.toggle();
-                return;
-            }
+            // Command palette keyboard shortcut removed (Ctrl+Shift+P now used for tab canvas search)
+            // You can still access command palette via other methods
 
             // Handle shortcuts when palette is closed
             if (!this.isOpen) {

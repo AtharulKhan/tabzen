@@ -236,11 +236,19 @@ export class TabCanvasManager {
       }
     });
 
-    // Keyboard shortcut: Ctrl/Cmd + F to focus search
+    // Keyboard shortcuts to focus search
     document.addEventListener('keydown', (e) => {
       // Only activate if tab canvas is visible
       if (!this.container?.classList.contains('visible')) return;
 
+      // Ctrl/Cmd + Shift + P
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        this.openSearch();
+        return;
+      }
+
+      // Ctrl/Cmd + F (alternative shortcut)
       if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault();
         this.openSearch();
