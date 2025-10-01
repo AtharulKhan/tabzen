@@ -37,7 +37,10 @@ export class ThemeManager {
     // Check for system preference
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     this.currentTheme = prefersDark ? 'dark' : 'light';
-    
+
+    // Apply the initial theme
+    this.setTheme(this.currentTheme);
+
     // Listen for system theme changes
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
       if (this.followSystem) {
@@ -48,10 +51,18 @@ export class ThemeManager {
   
   setTheme(theme) {
     if (!this.themes[theme]) return;
-    
+
     this.currentTheme = theme;
     document.documentElement.setAttribute('data-theme', theme);
-    
+
+    // Apply CSS custom properties
+    const root = document.documentElement;
+    const themeColors = this.themes[theme];
+
+    Object.entries(themeColors).forEach(([property, value]) => {
+      root.style.setProperty(property, value);
+    });
+
     // Update meta theme color
     const metaTheme = document.querySelector('meta[name="theme-color"]');
     if (metaTheme) {
@@ -62,7 +73,7 @@ export class ThemeManager {
       meta.content = theme === 'dark' ? '#141414' : '#fafafa';
       document.head.appendChild(meta);
     }
-    
+
     return theme;
   }
   
