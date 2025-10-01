@@ -595,6 +595,8 @@ body {
   transition: left 0.6s cubic-bezier(0.4, 0, 0.2, 1), top 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform var(--transition-base);
 }
 
+/* Row separator lines - removed for cleaner look */
+
 /* Long press animation */
 .tab-canvas-tile.long-pressing .tab-canvas-tile-shell {
   animation: longPressIndicator 0.5s ease-in-out;
@@ -954,8 +956,8 @@ body {
 
 .tab-canvas-tile-favicon,
 .tab-canvas-tile-card-favicon {
-  width: 28px;
-  height: 28px;
+  width: var(--favicon-size, 28px);
+  height: var(--favicon-size, 28px);
   border-radius: 10px;
   background: var(--tile-accent, rgba(148, 163, 184, 0.12));
   background-image: var(--favicon-image, none);
@@ -967,7 +969,7 @@ body {
   justify-content: center;
   color: var(--tile-text-color, var(--foreground));
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--favicon-font-size, 12px);
   letter-spacing: 0.01em;
   box-shadow: none;
   overflow: hidden;
@@ -989,7 +991,7 @@ body {
 .tab-canvas-tile-favicon-placeholder {
   pointer-events: none;
   opacity: 0.85;
-  font-size: 11px;
+  font-size: var(--favicon-font-size, 11px);
 }
 
 .tab-canvas-tile-favicon.has-favicon .tab-canvas-tile-favicon-placeholder,
@@ -1144,6 +1146,135 @@ body {
   height: 1px;
   background: rgba(148, 163, 184, 0.2);
   margin: 4px 0;
+}
+
+/* Grid Config Menu */
+.tab-canvas-grid-config-menu {
+  position: fixed;
+  min-width: 200px;
+  max-width: 240px;
+  max-height: 500px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.18);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 2000;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.tab-canvas-grid-config-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tab-canvas-grid-config-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tab-canvas-grid-config-menu::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 3px;
+}
+
+.tab-canvas-grid-config-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+.grid-config-divider {
+  height: 1px;
+  background: rgba(148, 163, 184, 0.2);
+  margin: 4px 8px;
+}
+
+.grid-config-menu-header {
+  padding: 10px 14px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+
+.tab-canvas-grid-config-menu button {
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  text-align: left;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background var(--transition-base), color var(--transition-base);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+}
+
+.tab-canvas-grid-config-menu button:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.tab-canvas-grid-config-menu button.selected {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.tab-canvas-grid-config-menu button.selected .grid-config-option-text strong {
+  color: var(--primary);
+}
+
+.grid-config-option-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--foreground);
+  flex-shrink: 0;
+}
+
+.tab-canvas-grid-config-menu button.selected .grid-config-option-icon {
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--primary);
+}
+
+.grid-config-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.grid-config-option-text strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.grid-config-option-text span {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+[data-theme="dark"] .tab-canvas-grid-config-menu {
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(10px);
+  border-color: rgba(148, 163, 184, 0.15);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .grid-config-option-icon {
+  background: rgba(71, 85, 105, 0.3);
+}
+
+[data-theme="dark"] .tab-canvas-grid-config-menu button.selected .grid-config-option-icon {
+  background: rgba(59, 130, 246, 0.25);
 }
 
 .tab-canvas-color-picker {
@@ -2765,4 +2896,100 @@ body {
 [data-theme="dark"] .tab-canvas-resize-handle:hover {
   background: rgba(30, 41, 59, 0.6);
   border-color: rgba(226, 232, 240, 0.65);
+}
+
+/* Responsive Styles */
+@media (max-width: 1200px) {
+  .app-container {
+    padding: 16px;
+  }
+
+  .tab-canvas {
+    padding: 16px;
+    padding-bottom: calc(16px + 72px);
+  }
+
+  .search-container {
+    padding: 0 16px;
+  }
+
+  .mini-quick-links-container {
+    padding: 0 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    padding: 12px;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .header-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .greeting {
+    font-size: 24px;
+  }
+
+  .tab-canvas {
+    padding: 12px;
+    padding-bottom: calc(12px + 72px);
+    border-radius: 20px;
+  }
+
+  .tab-canvas-inner {
+    padding: 8px;
+  }
+
+  .search-wrapper {
+    max-width: 100%;
+  }
+
+  .space-tabs-container {
+    margin-bottom: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-container {
+    padding: 8px;
+  }
+
+  .greeting {
+    font-size: 20px;
+  }
+
+  .date-time {
+    font-size: 12px;
+  }
+
+  .tab-canvas {
+    margin: 16px 0;
+    padding: 8px;
+    padding-bottom: calc(8px + 72px);
+    border-radius: 16px;
+  }
+
+  .tab-canvas-add-btn,
+  .tab-canvas-arrange-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .tab-canvas-add-btn {
+    right: 16px;
+    bottom: 16px;
+  }
+
+  .tab-canvas-arrange-btn {
+    right: 72px;
+    bottom: 16px;
+  }
 }

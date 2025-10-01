@@ -2,6 +2,21 @@
 
 const DEFAULT_TILE_WIDTH = 36;
 const DEFAULT_TILE_HEIGHT = 36;
+
+// Get responsive tile size based on column count
+function getResponsiveTileSize(columnCount) {
+  if (columnCount <= 6) {
+    return { width: 64, height: 64 }; // Extra large for very few columns
+  } else if (columnCount <= 10) {
+    return { width: 52, height: 52 }; // Large for fewer columns
+  } else if (columnCount <= 14) {
+    return { width: 44, height: 44 }; // Medium-large
+  } else if (columnCount <= 18) {
+    return { width: 40, height: 40 }; // Medium
+  } else {
+    return { width: DEFAULT_TILE_WIDTH, height: DEFAULT_TILE_HEIGHT }; // Default for many columns
+  }
+}
 const DEFAULT_COLORS = [
   '#EEF2FF',
   '#E0E7FF',
@@ -47,11 +62,14 @@ export class TabCanvasManager {
     this.resizeState = null;
     this.canvasResizeState = null;
     this.contextMenu = null;
+    this.gridConfigMenu = null;
     this.nextZ = 10;
 
     this.settings = {
       snapToGrid: false,
-      height: null
+      height: null,
+      gridMode: 'auto', // 'auto', 'fixed'
+      gridColumns: null // null for auto, number for fixed
     };
 
     this.resizeHandle = resizeHandle;
@@ -77,6 +95,10 @@ export class TabCanvasManager {
     }
     if (this.arrangeButton) {
       this.arrangeButton.addEventListener('click', () => this.autoArrangeTiles());
+      this.arrangeButton.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        this.showGridConfigMenu(event);
+      });
     }
     this.bindModal();
     this.bindCanvasResizeHandle();
@@ -93,7 +115,9 @@ export class TabCanvasManager {
 
     this.settings = {
       snapToGrid: state?.settings?.snapToGrid ?? false,
-      height
+      height,
+      gridMode: state?.settings?.gridMode ?? 'auto',
+      gridColumns: state?.settings?.gridColumns ?? null
     };
 
     this.setCanvasHeight(height, { persist: false });
@@ -1305,22 +1329,47 @@ export class TabCanvasManager {
 
     // Calculate grid dimensions
     const padding = 24;
-    const gap = 16;
-    const tileWidth = DEFAULT_TILE_WIDTH;
-    const tileHeight = DEFAULT_TILE_HEIGHT;
+    const gapX = 16; // Horizontal gap between tiles
+    const gapY = 64; // Vertical gap between rows (increased spacing)
 
-    // Calculate how many tiles can fit in a row
-    const availableWidth = bounds.width - (padding * 2);
-    const tilesPerRow = Math.floor((availableWidth + gap) / (tileWidth + gap));
-    const actualTilesPerRow = Math.max(1, Math.min(tilesPerRow, this.tiles.length));
+    // Determine tiles per row based on grid mode (first pass with default size)
+    let actualTilesPerRow;
+    if (this.settings.gridMode === 'fixed' && this.settings.gridColumns) {
+      // Use fixed column count
+      actualTilesPerRow = this.settings.gridColumns;
+    } else {
+      // Auto mode: Calculate how many tiles can fit in a row
+      const availableWidth = bounds.width - (padding * 2);
+      const tilesPerRow = Math.floor((availableWidth + gapX) / (DEFAULT_TILE_WIDTH + gapX));
+      actualTilesPerRow = Math.max(1, Math.min(tilesPerRow, this.tiles.length));
+    }
+
+    // Get responsive tile size based on column count
+    const responsiveSize = getResponsiveTileSize(actualTilesPerRow);
+    const tileWidth = responsiveSize.width;
+    const tileHeight = responsiveSize.height;
 
     // Calculate rows needed
     const rows = Math.ceil(this.tiles.length / actualTilesPerRow);
 
     // Center the grid
-    const totalGridWidth = (actualTilesPerRow * tileWidth) + ((actualTilesPerRow - 1) * gap);
+    const totalGridWidth = (actualTilesPerRow * tileWidth) + ((actualTilesPerRow - 1) * gapX);
     const startX = Math.max(padding, (bounds.width - totalGridWidth) / 2);
     const startY = padding;
+
+    // Set CSS custom properties for row separator lines and favicon scaling
+    if (this.inner) {
+      this.inner.style.setProperty('--grid-start-x', `${startX}px`);
+      this.inner.style.setProperty('--grid-width', `${totalGridWidth}px`);
+      this.inner.style.setProperty('--row-height', `${tileHeight + gapY}px`);
+      this.inner.style.setProperty('--row-offset', `${startY}px`);
+
+      // Scale favicon size based on tile size
+      const faviconSize = Math.round(tileWidth * 0.7); // 70% of tile width
+      const placeholderFontSize = Math.round(faviconSize * 0.4); // 40% of favicon size
+      this.inner.style.setProperty('--favicon-size', `${faviconSize}px`);
+      this.inner.style.setProperty('--favicon-font-size', `${placeholderFontSize}px`);
+    }
 
     // Add animation class to all tiles
     this.tileElements.forEach(element => {
@@ -1332,8 +1381,8 @@ export class TabCanvasManager {
       const row = Math.floor(index / actualTilesPerRow);
       const col = index % actualTilesPerRow;
 
-      tile.x = Math.round(startX + (col * (tileWidth + gap)));
-      tile.y = Math.round(startY + (row * (tileHeight + gap)));
+      tile.x = Math.round(startX + (col * (tileWidth + gapX)));
+      tile.y = Math.round(startY + (row * (tileHeight + gapY)));
 
       // Reset size to default
       tile.width = tileWidth;
@@ -1427,6 +1476,111 @@ export class TabCanvasManager {
     if (this.contextMenu) {
       this.contextMenu.remove();
       this.contextMenu = null;
+    }
+  }
+
+  showGridConfigMenu(event) {
+    this.closeGridConfigMenu();
+
+    const menu = document.createElement('div');
+    menu.className = 'tab-canvas-grid-config-menu';
+
+    // Temporarily add to DOM to measure dimensions
+    menu.style.visibility = 'hidden';
+    document.body.appendChild(menu);
+
+    const currentMode = this.settings.gridMode || 'auto';
+    const currentColumns = this.settings.gridColumns;
+
+    // Generate column options
+    const columnOptions = [6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26];
+    const optionsHTML = columnOptions.map(cols => `
+      <button data-mode="fixed" data-columns="${cols}" class="${currentMode === 'fixed' && currentColumns === cols ? 'selected' : ''}">
+        <div class="grid-config-option-icon">${cols}</div>
+        <div class="grid-config-option-text">
+          <strong>${cols} Columns</strong>
+        </div>
+      </button>
+    `).join('');
+
+    menu.innerHTML = `
+      <div class="grid-config-menu-header">Grid Layout</div>
+      <button data-mode="auto" class="${currentMode === 'auto' ? 'selected' : ''}">
+        <div class="grid-config-option-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+          </svg>
+        </div>
+        <div class="grid-config-option-text">
+          <strong>Auto</strong>
+          <span>Fit to canvas width</span>
+        </div>
+      </button>
+      <div class="grid-config-divider"></div>
+      ${optionsHTML}
+    `;
+
+    menu.addEventListener('click', async (clickEvent) => {
+      const button = clickEvent.target.closest('button');
+      if (!button) return;
+
+      const mode = button.dataset.mode;
+      const columns = button.dataset.columns ? parseInt(button.dataset.columns, 10) : null;
+
+      this.settings.gridMode = mode;
+      this.settings.gridColumns = columns;
+
+      await this.persistState();
+      this.closeGridConfigMenu();
+    });
+
+    // Position the menu with viewport boundary checking
+    const menuRect = menu.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    let left = event.clientX;
+    let top = event.clientY;
+
+    // Check right boundary
+    if (left + menuRect.width > viewportWidth) {
+      left = viewportWidth - menuRect.width - 10;
+    }
+
+    // Check bottom boundary
+    if (top + menuRect.height > viewportHeight) {
+      top = viewportHeight - menuRect.height - 10;
+    }
+
+    // Ensure minimum distance from edges
+    left = Math.max(10, left);
+    top = Math.max(10, top);
+
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+    menu.style.visibility = 'visible';
+
+    this.gridConfigMenu = menu;
+
+    const closeHandler = (e) => {
+      if (!menu.contains(e.target)) {
+        this.closeGridConfigMenu();
+        document.removeEventListener('mousedown', closeHandler, true);
+        document.removeEventListener('contextmenu', closeHandler, true);
+      }
+    };
+
+    document.addEventListener('mousedown', closeHandler, true);
+    document.addEventListener('contextmenu', closeHandler, true);
+  }
+
+  closeGridConfigMenu() {
+    if (this.gridConfigMenu) {
+      this.gridConfigMenu.remove();
+      this.gridConfigMenu = null;
     }
   }
 
@@ -1634,7 +1788,9 @@ export class TabCanvasManager {
       tabs: this.tiles,
       settings: {
         snapToGrid: this.settings?.snapToGrid ?? false,
-        height: this.settings?.height ?? this.getDefaultCanvasHeight()
+        height: this.settings?.height ?? this.getDefaultCanvasHeight(),
+        gridMode: this.settings?.gridMode ?? 'auto',
+        gridColumns: this.settings?.gridColumns ?? null
       }
     });
   }
